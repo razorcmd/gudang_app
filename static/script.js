@@ -51,19 +51,54 @@ function kirimCuciMassal() {
     });
 }
 
-function updateProgress(id, aksi) {
-    let nanya = aksi == 'ke_finishing' ? "Berapa potong yang turun ke Finishing hari ini?" : "Berapa potong yang selesai ke Gudang hari ini?";
-    let qty = prompt(nanya);
-    if(qty && !isNaN(qty)) {
-        fetch('/update_progress', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({id: id, aksi: aksi, qty: qty}) })
-        .then(res => res.json()).then(res => {
-            if(res.status == 'error') alert(res.pesan); else {
-                if(aksi == 'ke_gudang') alert("Sukses! Jangan lupa klik tombol '+ Masuk' di Tab Gudang biar stok asli nambah.");
-                window.location.reload();
-            }
-        });
+// --- LOGIKA POP-UP PROGRESS PRODUKSI BARU ---
+let modalData = {};
+
+function bukaModal(id, aksi, pesan) {
+    modalData = { id: id, aksi: aksi };
+    document.getElementById('modalTitle').innerText = pesan;
+    document.getElementById('modalInput').value = '';
+    document.getElementById('customModal').style.display = 'flex'; // Munculin modal
+    setTimeout(() => document.getElementById('modalInput').focus(), 100); // Otomatis buka keyboard
+}
+
+function tutupModal() {
+    document.getElementById('customModal').style.display = 'none'; // Sembunyiin modal
+}
+
+function konfirmasiModal() {
+    let qty = document.getElementById('modalInput').value;
+    if (qty && !isNaN(qty) && parseInt(qty) > 0) {
+        tutupModal();
+        kirimProgress(modalData.id, modalData.aksi, qty);
+    } else {
+        alert("Masukkan jumlah yang valid!");
     }
 }
+
+// Fungsi utama untuk nembak data ke database
+function kirimProgress(id, aksi, qty) {
+    // Kalau yang diklik tombol "Centang", kita konfirmasi dulu biar ga salah klik
+    if(!document.getElementById('customModal').style.display || document.getElementById('customModal').style.display == 'none') {
+        if(!confirm(`Yakin mau memindahkan semua ${qty} potong?`)) return;
+    }
+
+    fetch('/update_progress', { 
+        method: 'POST', 
+        headers: {'Content-Type': 'application/json'}, 
+        body: JSON.stringify({id: id, aksi: aksi, qty: qty}) 
+    })
+    .then(res => res.json())
+    .then(res => {
+        if(res.status == 'error') {
+            alert(res.pesan); 
+        } else {
+            if(aksi == 'ke_gudang') alert("Sukses masuk Gudang! Jangan lupa tambah stoknya di Tab Cargo/Campuran ya.");
+            window.location.reload();
+        }
+    });
+}
+// --------------------------------------------
 
 function updateGudang(sku, aksi, jumlah) {
     fetch('/update_stok', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sku: sku, aksi: aksi, jumlah: jumlah }) })

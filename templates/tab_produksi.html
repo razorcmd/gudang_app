@@ -5,7 +5,6 @@
         <div style="font-size: 36px; font-weight: bold; color: #f1c40f; margin-bottom: 15px;">{{ total_mentahan }} ptg</div>
         <div class="form-input">
             <input type="text" id="mModel" class="input-box" placeholder="Model" value="Cargo">
-            
             <select id="mSize" class="input-box input-size" style="padding: 10px; flex: none; max-width: 80px;">
                 <option value="S">S</option>
                 <option value="M">M</option>
@@ -30,7 +29,6 @@
                 <option value="Cuci D">Cuci D</option>
                 <option value="Cuci T">Cuci T</option>
             </select>
-            
             <select id="kWarnaBatch" class="input-box">
                 <option value="" disabled selected>-- Warna --</option>
                 <option value="Snow Hitam">Snow Hitam</option>
@@ -69,15 +67,25 @@
                 <span style="font-size: 12px; color: #7f8c8d;">Total: {{ p.total_pcs }} pcs</span>
             </div>
             <div class="status-row" style="padding: 5px; margin-top: 5px;">
-                <div style="text-align: center; flex: 1;">
+                <div style="text-align: center; flex: 1; padding: 0 4px;">
                     <div style="font-size: 11px; color: #7f8c8d;">Di Cuci</div>
                     <div style="font-size: 18px; font-weight: bold; color: #3498db;">{{ p.di_cuci }}</div>
-                    {% if p.di_cuci > 0 %}<button class="btn" style="background: #3498db; padding: 6px; font-size: 11px; width: 90%; margin-top: 5px;" onclick="updateProgress({{ p.id }}, 'ke_finishing')">Finishing ➔</button>{% endif %}
+                    {% if p.di_cuci > 0 %}
+                    <div style="display: flex; gap: 4px; margin-top: 5px;">
+                        <button class="btn" style="background: #3498db; padding: 6px; font-size: 10px; flex: 1;" onclick="bukaModal({{ p.id }}, 'ke_finishing', 'Berapa potong yang turun ke Finishing?')">Sebagian</button>
+                        <button class="btn" style="background: #2ecc71; padding: 6px; font-size: 10px;" onclick="kirimProgress({{ p.id }}, 'ke_finishing', {{ p.di_cuci }})" title="Pindah Semua">✔️</button>
+                    </div>
+                    {% endif %}
                 </div>
-                <div style="text-align: center; flex: 1; border-left: 1px solid #ccc;">
+                <div style="text-align: center; flex: 1; border-left: 1px solid #ccc; padding: 0 4px;">
                     <div style="font-size: 11px; color: #7f8c8d;">Finishing</div>
                     <div style="font-size: 18px; font-weight: bold; color: #e67e22;">{{ p.di_finishing }}</div>
-                    {% if p.di_finishing > 0 %}<button class="btn" style="background: #e67e22; padding: 6px; font-size: 11px; width: 90%; margin-top: 5px;" onclick="updateProgress({{ p.id }}, 'ke_gudang')">Gudang ➔</button>{% endif %}
+                    {% if p.di_finishing > 0 %}
+                    <div style="display: flex; gap: 4px; margin-top: 5px;">
+                        <button class="btn" style="background: #e67e22; padding: 6px; font-size: 10px; flex: 1;" onclick="bukaModal({{ p.id }}, 'ke_gudang', 'Berapa potong yang masuk ke Gudang?')">Sebagian</button>
+                        <button class="btn" style="background: #2ecc71; padding: 6px; font-size: 10px;" onclick="kirimProgress({{ p.id }}, 'ke_gudang', {{ p.di_finishing }})" title="Pindah Semua">✔️</button>
+                    </div>
+                    {% endif %}
                 </div>
             </div>
         </div>
@@ -86,4 +94,16 @@
     {% else %}
     <div style="text-align: center; color: #95a5a6; font-size: 14px;">Tidak ada produksi berjalan.</div>
     {% endfor %}
+
+    <div id="customModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 9999; align-items: center; justify-content: center;">
+        <div class="card" style="width: 80%; max-width: 300px; padding: 20px; text-align: center;">
+            <h4 id="modalTitle" style="margin-top: 0; color: #2c3e50;">Berapa potong?</h4>
+            <input type="number" id="modalInput" class="input-box" inputmode="numeric" pattern="[0-9]*" style="width: 100%; text-align: center; font-size: 24px; font-weight: bold; margin-bottom: 15px;" placeholder="0">
+            <div style="display: flex; gap: 10px;">
+                <button class="btn" style="background: #e74c3c; flex: 1;" onclick="tutupModal()">Batal</button>
+                <button class="btn" style="background: #3498db; flex: 1;" onclick="konfirmasiModal()">OK</button>
+            </div>
+        </div>
+    </div>
+
 </div>
