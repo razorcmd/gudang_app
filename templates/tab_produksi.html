@@ -49,13 +49,13 @@
                 <div style="font-size: 13px; color: #e67e22; margin-top: 4px;">Total Batch: <strong style="font-size: 16px;">{{ data.grand_total }}</strong> Pcs</div>
             </div>
             <div style="display: flex; gap: 4px; flex-direction: column;">
-                {% set batch_ids = data.items | map(attribute='id') | list | tojson %}
+                {% set batch_ids = data.list_barang | map(attribute='id') | list | tojson %}
                 <button class="btn" style="background: #3498db; padding: 4px 6px; font-size: 10px;" onclick='pindahBatchSemua({{ batch_ids }}, "ke_finishing")'>➔ All Finish</button>
                 <button class="btn" style="background: #e67e22; padding: 4px 6px; font-size: 10px;" onclick='pindahBatchSemua({{ batch_ids }}, "ke_gudang")'>➔ All Gudang</button>
             </div>
         </div>
         
-        {% for p in data.items %}
+        {% for p in data.list_barang %}
         <div style="margin-bottom: 15px;">
             <div style="display: flex; justify-content: space-between; font-weight: bold; color: #34495e;">
                 <span>{{ p.model }} (Size {{ p.size }})</span>

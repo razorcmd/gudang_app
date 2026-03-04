@@ -14,14 +14,15 @@ def home():
     campuran = conn.execute("SELECT * FROM stok WHERE kategori = 'CAMPURAN'").fetchall()
     mentahan = conn.execute("SELECT * FROM mentahan").fetchall()
     
-    # Logika Baru: Mengelompokkan Produksi per Batch + Menghitung Total Pcs
+    # Logika Baru yang sudah diperbaiki
     produksi_raw = conn.execute("SELECT * FROM produksi WHERE selesai < total_pcs ORDER BY id DESC").fetchall()
     produksi_grouped = {}
     for p in produksi_raw:
         batch_key = f"{p['tanggal']} - {p['vendor_cuci']} ({p['warna_target']})"
         if batch_key not in produksi_grouped:
-            produksi_grouped[batch_key] = {'items': [], 'grand_total': 0}
-        produksi_grouped[batch_key]['items'].append(p)
+            # Ganti nama key dari 'items' jadi 'list_barang' supaya tidak error
+            produksi_grouped[batch_key] = {'list_barang': [], 'grand_total': 0}
+        produksi_grouped[batch_key]['list_barang'].append(p)
         produksi_grouped[batch_key]['grand_total'] += p['total_pcs']
         
     total_mentahan = conn.execute("SELECT SUM(jumlah) FROM mentahan").fetchone()[0] or 0
