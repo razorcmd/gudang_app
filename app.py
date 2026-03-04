@@ -163,7 +163,9 @@ def upload_csv():
             except: file_str = file_bytes.decode('cp1252')
                 
         stream = io.StringIO(file_str, newline=None)
-first_line = file_str.split('\n')[0]
+        
+        # --- MULAI DARI SINI SPASINYA SUDAH DIRAPIKAN ---
+        first_line = file_str.split('\n')[0]
         if ';' in first_line:
             pemisah = ';'
         elif '\t' in first_line:
