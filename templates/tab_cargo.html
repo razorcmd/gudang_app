@@ -10,10 +10,22 @@
     </div>
 
     {% for barang in cargo %}
+    
+    {% set warna_hex = '#bdc3c7' %} {% if 'Light Blue' in barang.varian %}
+        {% set warna_hex = '#52DCFF' %}
+    {% elif 'Snow Biru' in barang.varian %}
+        {% set warna_hex = '#005BE6' %}
+    {% elif 'Snow Hitam' in barang.varian %}
+        {% set warna_hex = '#242424' %}
+    {% endif %}
+
     <div class="card item-cargo" data-search="{{ barang.varian | lower }} {{ barang.size | lower }} {{ barang.sku | lower }}">
         <div class="header-card">
-            <h3 style="margin: 0; color: #2980b9;">{{ barang.varian }} ({{ barang.size }})</h3>
-            <div style="font-size: 12px; color: #7f8c8d;">SKU: {{ barang.sku }}</div>
+            <h3 style="margin: 0; color: #2c3e50; display: flex; align-items: center;">
+                <span style="display: inline-block; width: 14px; height: 14px; border-radius: 50%; background-color: {{ warna_hex }}; margin-right: 8px; border: 1px solid #ccc; box-shadow: 0 1px 3px rgba(0,0,0,0.1);"></span>
+                {{ barang.varian }} ({{ barang.size }})
+            </h3>
+            <div style="font-size: 12px; color: #7f8c8d; margin-top: 4px;">SKU: {{ barang.sku }}</div>
             <div class="lokasi">📍 {{ barang.petak }}</div>
         </div>
         <div class="stok-area">
@@ -36,6 +48,17 @@
             {% for b in cargo %} "{{ b.sku }}": {{ loop.index0 }}, {% endfor %}
         };
 
+        // Bikin array warna buat batang grafik dari Python/Jinja
+        const chartColors = [
+            {% for b in cargo %}
+                {% if 'Light Blue' in b.varian %} '#52DCFF',
+                {% elif 'Snow Biru' in b.varian %} '#005BE6',
+                {% elif 'Snow Hitam' in b.varian %} '#242424',
+                {% else %} '#bdc3c7',
+                {% endif %}
+            {% endfor %}
+        ];
+
         window.cargoChartInstance = new Chart(ctx, {
             type: 'bar',
             data: {
@@ -43,18 +66,18 @@
                 datasets: [{
                     label: 'Stok (Pcs)',
                     data: [{% for b in cargo %} {{ b.jumlah_gudang }}, {% endfor %}],
-                    backgroundColor: '#3498db',
+                    backgroundColor: chartColors, // Warna grafik sekarang dinamis mengikuti array!
                     borderRadius: 4
                 }]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                indexAxis: 'y', // MENGUBAH GRAFIK JADI TIDURAN (HORIZONTAL)
+                indexAxis: 'y',
                 scales: { 
                     x: { beginAtZero: true },
                     y: { 
-                        ticks: { autoSkip: false }, // MENGPAKSA SEMUA 21 NAMA MUNCUL
+                        ticks: { autoSkip: false }, 
                         grid: { display: false }
                     } 
                 },
