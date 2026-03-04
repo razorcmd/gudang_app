@@ -187,16 +187,17 @@ def upload_csv():
             except: qty = 0
             if qty == 0: continue
             
-            # 🧠 FILTER PIVOT SEPERTI DI EXCEL 🧠
-            # Kalau di nama produknya TIDAK ADA kata "cargo", langsung ABAIKAN!
-            if 'cargo' not in produk.lower():
+            # 🧠 FILTER PIVOT SUPER KETAT 🧠
+            # Hanya memproses produk yang judulnya mengandung kalimat spesifik ini
+            judul_target = "celana panjang anak cargo pinggang full karet usia 1-8 tahun"
+            if judul_target not in produk.lower():
                 continue
             
             kunci_rekap = f"{produk} || {variasi}"
             rekap_pesanan[kunci_rekap] = rekap_pesanan.get(kunci_rekap, 0) + qty
 
         if not rekap_pesanan:
-            return jsonify({"status": "error", "pesan": "Tidak ada pesanan Cargo di file ini."})
+            return jsonify({"status": "error", "pesan": "Tidak ada pesanan Celana Panjang Anak Cargo di file ini."})
 
         conn = database.get_db_connection()
         stok_semua = conn.execute("SELECT sku, varian, size, jumlah_gudang, kategori FROM stok").fetchall()
@@ -206,6 +207,7 @@ def upload_csv():
             produk, variasi = kunci.split(" || ")
             
             variasi_normal = variasi.lower()
+            # Membersihkan nama variasi dari kurung-kurung TikTok
             variasi_normal = variasi_normal.replace('8 (8tahun)', '8').replace('9 (9tahun)', '9').replace('10 (10 tahun)', '10')
             
             teks_cari_warna = f"{produk} {variasi_normal}".lower()
