@@ -4,11 +4,20 @@
         <div style="font-size: 12px; color: #bdc3c7;">TOTAL SIAP CUCI</div>
         <div style="font-size: 36px; font-weight: bold; color: #f1c40f; margin-bottom: 15px;">{{ total_mentahan }} ptg</div>
         <div class="form-input">
-            <input type="text" id="mModel" class="input-box" placeholder="Model (Cargo)">
-            <input type="text" id="mSize" class="input-box input-size" placeholder="Size">
+            <input type="text" id="mModel" class="input-box" placeholder="Model" value="Cargo">
+            
+            <select id="mSize" class="input-box input-size" style="padding: 10px; flex: none; max-width: 80px;">
+                <option value="S">S</option>
+                <option value="M">M</option>
+                <option value="L">L</option>
+                <option value="XL">XL</option>
+                <option value="8">8</option>
+                <option value="9">9</option>
+                <option value="10">10</option>
+            </select>
         </div>
         <div class="form-input">
-            <input type="number" id="mQty" class="input-box" placeholder="Jumlah (Ptg)">
+            <input type="number" id="mQty" class="input-box" placeholder="Jumlah (Ptg)" inputmode="numeric" pattern="[0-9]*">
             <button class="btn" style="background: #2ecc71;" onclick="simpanMentahan()">+ Simpan</button>
         </div>
     </div>
@@ -16,8 +25,18 @@
     <h3>🚚 Kirim ke Tempat Cuci</h3>
     <div class="card" style="border: 1px solid #3498db;">
         <div class="form-input">
-            <input type="text" id="kVendor" class="input-box" placeholder="Nama Tempat Cuci (Misal: Cuci D)">
-            <input type="text" id="kWarnaBatch" class="input-box" placeholder="Warna Target (Snow Black)">
+            <select id="kVendor" class="input-box">
+                <option value="" disabled selected>-- Tempat --</option>
+                <option value="Cuci D">Cuci D</option>
+                <option value="Cuci T">Cuci T</option>
+            </select>
+            
+            <select id="kWarnaBatch" class="input-box">
+                <option value="" disabled selected>-- Warna --</option>
+                <option value="Snow Hitam">Snow Hitam</option>
+                <option value="Snow Biru">Snow Biru</option>
+                <option value="Light Blue">Light Blue</option>
+            </select>
         </div>
         
         <p style="font-size: 12px; color: #7f8c8d; margin-top: 0; margin-bottom: 10px;">Centang mentahan yang mau dikirim di batch ini:</p>
@@ -29,7 +48,7 @@
                     <strong>{{ m.model }} ({{ m.size }})</strong><br>
                     <span style="font-size: 11px; color: #e67e22;">Stok: {{ m.jumlah }} ptg</span>
                 </div>
-                <input type="number" class="input-box qty-kirim" placeholder="Qty" style="width: 60px; padding: 6px;" max="{{ m.jumlah }}">
+                <input type="number" class="input-box qty-kirim" placeholder="Qty" style="width: 60px; padding: 6px;" max="{{ m.jumlah }}" inputmode="numeric" pattern="[0-9]*">
             </div>
             {% endfor %}
         </div>

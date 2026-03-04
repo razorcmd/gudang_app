@@ -7,13 +7,18 @@ function switchTab(tabId, element) {
 }
 
 function simpanMentahan() {
+    let modelInput = document.getElementById('mModel').value.trim();
+    
     let data = {
-        model: document.getElementById('mModel').value, 
+        model: modelInput !== "" ? modelInput : "Cargo", // Kalau nggak sengaja kehapus, otomatis isi Cargo
         size: document.getElementById('mSize').value, 
         jumlah: document.getElementById('mQty').value
     };
-    if(!data.model || !data.size || !data.jumlah) { alert("Isi lengkap!"); return; }
-    fetch('/tambah_mentahan', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data) }).then(() => window.location.reload());
+    
+    if(!data.size || !data.jumlah) { alert("Size dan Jumlah wajib diisi!"); return; }
+    
+    fetch('/tambah_mentahan', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data) })
+    .then(() => window.location.reload());
 }
 
 function kirimCuciMassal() {
