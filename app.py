@@ -164,14 +164,10 @@ def upload_csv():
                 
         stream = io.StringIO(file_str, newline=None)
         
-        # --- MULAI DARI SINI SPASINYA SUDAH DIRAPIKAN ---
         first_line = file_str.split('\n')[0]
-        if ';' in first_line:
-            pemisah = ';'
-        elif '\t' in first_line:
-            pemisah = '\t'
-        else:
-            pemisah = ','
+        if ';' in first_line: pemisah = ';'
+        elif '\t' in first_line: pemisah = '\t'
+        else: pemisah = ','
             
         stream.seek(0)
         csv_input = csv.DictReader(stream, delimiter=pemisah)
@@ -187,16 +183,20 @@ def upload_csv():
             if 'CANCEL' in status or 'BATAL' in status: continue
             if not produk and not variasi: continue
             
-            # Abaikan baris ke-2 dari TikTok yang isinya cuma teks penjelasan
             try: qty = int(qty_str)
             except: qty = 0
             if qty == 0: continue
+            
+            # 🧠 FILTER PIVOT SEPERTI DI EXCEL 🧠
+            # Kalau di nama produknya TIDAK ADA kata "cargo", langsung ABAIKAN!
+            if 'cargo' not in produk.lower():
+                continue
             
             kunci_rekap = f"{produk} || {variasi}"
             rekap_pesanan[kunci_rekap] = rekap_pesanan.get(kunci_rekap, 0) + qty
 
         if not rekap_pesanan:
-            return jsonify({"status": "error", "pesan": "Tidak ada data pesanan valid. Pastikan ada kolom Product Name, Variation, dan Quantity."})
+            return jsonify({"status": "error", "pesan": "Tidak ada pesanan Cargo di file ini."})
 
         conn = database.get_db_connection()
         stok_semua = conn.execute("SELECT sku, varian, size, jumlah_gudang, kategori FROM stok").fetchall()
@@ -221,7 +221,7 @@ def upload_csv():
                 cocok_size = re.search(r'\b' + re.escape(size_db) + r'\b', teks_cari_size)
                 
                 if cocok_warna and cocok_size:
-                    if 'cargo' in produk.lower() and b['kategori'] != 'CARGO': continue
+                    if b['kategori'] != 'CARGO': continue
                     barang_cocok = b
                     break
             
