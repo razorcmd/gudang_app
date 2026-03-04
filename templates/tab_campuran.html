@@ -1,0 +1,25 @@
+<div id="tab-campuran" class="tab-content">
+    <h2 style="text-align: center;">🗃️ Gudang 2 (Campuran)</h2>
+    
+    <div style="position: sticky; top: 0; background: #f4f4f9; padding: 10px 0; z-index: 100;">
+        <input type="text" id="searchCampuran" class="input-box" style="width: 100%; box-sizing: border-box; font-size: 16px; padding: 12px; border-radius: 8px;" placeholder="🔍 Cari nama model, warna, atau size..." onkeyup="cariBarang('campuran')">
+    </div>
+
+    {% for barang in campuran %}
+    <div class="card item-campuran" data-search="{{ barang.nama | lower }} {{ barang.varian | lower }} {{ barang.size | lower }} {{ barang.sku | lower }}">
+        <div class="header-card">
+            <h3 style="margin: 0;">{{ barang.nama }}</h3>
+            <div style="font-size: 13px; color: #7f8c8d;">SKU: {{ barang.sku }} | Var: {{ barang.varian }} ({{ barang.size }})</div>
+            <div class="lokasi">📍 {{ barang.petak }}</div>
+        </div>
+        <div class="stok-area">
+            <div class="stok-display" id="stok-{{ barang.sku }}">{{ barang.jumlah_gudang }}</div>
+            <div style="display: flex; gap: 8px; width: 100%; margin-top: 10px;">
+                <button class="btn" style="background: #e67e22; flex: 1;" onclick="updateGudang('{{ barang.sku }}', 'kurang', 1)">- 1 Pcs</button>
+                <button class="btn" style="background: #e74c3c; flex: 1;" onclick="updateGudang('{{ barang.sku }}', 'kurang', 12)">- 1 Lusin</button>
+                <button class="btn" style="background: #2ecc71; flex: 1;" onclick="updateGudang('{{ barang.sku }}', 'tambah', 12)">+ Masuk</button>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>

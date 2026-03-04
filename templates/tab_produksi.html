@@ -1,0 +1,70 @@
+<div id="tab-cucian" class="tab-content active">
+    <h3 style="margin-top: 0;">🧵 Setoran Jahitan Mentah</h3>
+    <div class="card" style="background: #34495e; color: white;">
+        <div style="font-size: 12px; color: #bdc3c7;">TOTAL SIAP CUCI</div>
+        <div style="font-size: 36px; font-weight: bold; color: #f1c40f; margin-bottom: 15px;">{{ total_mentahan }} ptg</div>
+        <div class="form-input">
+            <input type="text" id="mModel" class="input-box" placeholder="Model (Cargo)">
+            <input type="text" id="mSize" class="input-box input-size" placeholder="Size">
+        </div>
+        <div class="form-input">
+            <input type="number" id="mQty" class="input-box" placeholder="Jumlah (Ptg)">
+            <button class="btn" style="background: #2ecc71;" onclick="simpanMentahan()">+ Simpan</button>
+        </div>
+    </div>
+
+    <h3>🚚 Kirim ke Tempat Cuci</h3>
+    <div class="card" style="border: 1px solid #3498db;">
+        <div class="form-input">
+            <input type="text" id="kVendor" class="input-box" placeholder="Nama Tempat Cuci (Misal: Cuci D)">
+            <input type="text" id="kWarnaBatch" class="input-box" placeholder="Warna Target (Snow Black)">
+        </div>
+        
+        <p style="font-size: 12px; color: #7f8c8d; margin-top: 0; margin-bottom: 10px;">Centang mentahan yang mau dikirim di batch ini:</p>
+        <div id="list-mentahan-kirim">
+            {% for m in mentahan %}
+            <div style="display: flex; gap: 5px; align-items: center; margin-bottom: 8px; background: #f8f9fa; padding: 8px; border-radius: 6px; border: 1px solid #eee;">
+                <input type="checkbox" class="chk-mentahan" value="{{ m.id }}" data-model="{{ m.model }}" data-size="{{ m.size }}" data-max="{{ m.jumlah }}" style="transform: scale(1.3); margin-right: 5px;">
+                <div style="flex: 1; font-size: 13px;">
+                    <strong>{{ m.model }} ({{ m.size }})</strong><br>
+                    <span style="font-size: 11px; color: #e67e22;">Stok: {{ m.jumlah }} ptg</span>
+                </div>
+                <input type="number" class="input-box qty-kirim" placeholder="Qty" style="width: 60px; padding: 6px;" max="{{ m.jumlah }}">
+            </div>
+            {% endfor %}
+        </div>
+        <button class="btn" style="background: #3498db; width: 100%; margin-top: 10px;" onclick="kirimCuciMassal()">Kirim Batch ➔</button>
+    </div>
+
+    <h3>📊 Pantauan Produksi per Batch</h3>
+    {% for batch_name, items in produksi_grouped.items() %}
+    <div class="card track-card" style="border-left-color: #9b59b6;">
+        <h4 style="margin: 0 0 10px 0; border-bottom: 2px solid #eee; padding-bottom: 8px; color: #2c3e50;">
+            📦 Batch: <span style="color: #8e44ad;">{{ batch_name }}</span>
+        </h4>
+        
+        {% for p in items %}
+        <div style="margin-bottom: 15px;">
+            <div style="display: flex; justify-content: space-between; font-weight: bold; color: #34495e;">
+                <span>{{ p.model }} (Size {{ p.size }})</span>
+                <span style="font-size: 12px; color: #7f8c8d;">Total: {{ p.total_pcs }} pcs</span>
+            </div>
+            <div class="status-row" style="padding: 5px; margin-top: 5px;">
+                <div style="text-align: center; flex: 1;">
+                    <div style="font-size: 11px; color: #7f8c8d;">Di Cuci</div>
+                    <div style="font-size: 18px; font-weight: bold; color: #3498db;">{{ p.di_cuci }}</div>
+                    {% if p.di_cuci > 0 %}<button class="btn" style="background: #3498db; padding: 6px; font-size: 11px; width: 90%; margin-top: 5px;" onclick="updateProgress({{ p.id }}, 'ke_finishing')">Finishing ➔</button>{% endif %}
+                </div>
+                <div style="text-align: center; flex: 1; border-left: 1px solid #ccc;">
+                    <div style="font-size: 11px; color: #7f8c8d;">Finishing</div>
+                    <div style="font-size: 18px; font-weight: bold; color: #e67e22;">{{ p.di_finishing }}</div>
+                    {% if p.di_finishing > 0 %}<button class="btn" style="background: #e67e22; padding: 6px; font-size: 11px; width: 90%; margin-top: 5px;" onclick="updateProgress({{ p.id }}, 'ke_gudang')">Gudang ➔</button>{% endif %}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div style="text-align: center; color: #95a5a6; font-size: 14px;">Tidak ada produksi berjalan.</div>
+    {% endfor %}
+</div>

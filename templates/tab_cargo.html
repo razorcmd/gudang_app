@@ -1,0 +1,67 @@
+<div id="tab-cargo" class="tab-content">
+    <h2 style="text-align: center;">📦 Gudang 1 (Cargo)</h2>
+    
+    <div class="card" style="padding: 10px;">
+        <canvas id="cargoChart" height="200"></canvas>
+    </div>
+
+    <div style="position: sticky; top: 0; background: #f4f4f9; padding: 10px 0; z-index: 100;">
+        <input type="text" id="searchCargo" class="input-box" style="width: 100%; box-sizing: border-box; font-size: 16px; padding: 12px; border-radius: 8px;" placeholder="🔍 Cari warna atau size Cargo..." onkeyup="cariBarang('cargo')">
+    </div>
+
+    {% for barang in cargo %}
+    <div class="card item-cargo" data-search="{{ barang.varian | lower }} {{ barang.size | lower }} {{ barang.sku | lower }}">
+        <div class="header-card">
+            <h3 style="margin: 0; color: #2980b9;">{{ barang.varian }} ({{ barang.size }})</h3>
+            <div style="font-size: 12px; color: #7f8c8d;">SKU: {{ barang.sku }}</div>
+            <div class="lokasi">📍 {{ barang.petak }}</div>
+        </div>
+        <div class="stok-area">
+            <div class="stok-display" id="stok-{{ barang.sku }}">{{ barang.jumlah_gudang }}</div>
+            <div style="display: flex; gap: 8px; width: 100%; margin-top: 10px;">
+                <button class="btn" style="background: #e67e22; flex: 1;" onclick="updateGudang('{{ barang.sku }}', 'kurang', 1)">- 1 Pcs</button>
+                <button class="btn" style="background: #e74c3c; flex: 1;" onclick="updateGudang('{{ barang.sku }}', 'kurang', 12)">- 1 Lusin</button>
+                <button class="btn" style="background: #2ecc71; flex: 1;" onclick="updateGudang('{{ barang.sku }}', 'tambah', 12)">+ Masuk</button>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const ctx = document.getElementById('cargoChart').getContext('2d');
+        
+        // Bikin peta lokasi data biar grafiknya bisa di-update otomatis pas klik tombol +/-
+        window.skuToIndex = {
+            {% for b in cargo %} "{{ b.sku }}": {{ loop.index0 }}, {% endfor %}
+        };
+
+        window.cargoChartInstance = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: [{% for b in cargo %} "{{ b.varian }} {{ b.size }}", {% endfor %}],
+                datasets: [{
+                    label: 'Stok Cargo (Pcs)',
+                    data: [{% for b in cargo %} {{ b.jumlah_gudang }}, {% endfor %}],
+                    backgroundColor: '#3498db',
+                    borderRadius: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: { y: { beginAtZero: true } },
+                plugins: { legend: { display: false } } // Sembunyiin legend biar hemat tempat di layar HP
+            }
+        });
+
+        // Fungsi rahasia untuk update grafik secara real-time
+        window.updateChartData = function(sku, newValue) {
+            const index = window.skuToIndex[sku];
+            if(index !== undefined) {
+                window.cargoChartInstance.data.datasets[0].data[index] = newValue;
+                window.cargoChartInstance.update();
+            }
+        }
+    });
+</script>
