@@ -187,8 +187,6 @@ def upload_csv():
             except: qty = 0
             if qty == 0: continue
             
-            # 🧠 FILTER PIVOT SUPER KETAT 🧠
-            # Hanya memproses produk yang judulnya mengandung kalimat spesifik ini
             judul_target = "celana panjang anak cargo pinggang full karet usia 1-8 tahun"
             if judul_target not in produk.lower():
                 continue
@@ -207,7 +205,6 @@ def upload_csv():
             produk, variasi = kunci.split(" || ")
             
             variasi_normal = variasi.lower()
-            # Membersihkan nama variasi dari kurung-kurung TikTok
             variasi_normal = variasi_normal.replace('8 (8tahun)', '8').replace('9 (9tahun)', '9').replace('10 (10 tahun)', '10')
             
             teks_cari_warna = f"{produk} {variasi_normal}".lower()
@@ -231,16 +228,31 @@ def upload_csv():
                 sisa = barang_cocok['jumlah_gudang'] - butuh_qty
                 hasil_rekap.append({
                     "sku": barang_cocok['sku'], "nama": f"{barang_cocok['varian']} ({barang_cocok['size']})",
-                    "butuh": butuh_qty, "stok": barang_cocok['jumlah_gudang'], "sisa": sisa
+                    "butuh": butuh_qty, "stok": barang_cocok['jumlah_gudang'], "sisa": sisa,
+                    "warna_sort": barang_cocok['varian'].lower(), # Bawaan data untuk disortir
+                    "size_sort": barang_cocok['size'].lower()     # Bawaan data untuk disortir
                 })
             else:
                 nama_tampil = variasi if variasi else produk[:30]
                 hasil_rekap.append({
-                    "sku": "?", "nama": f"⚠️ {nama_tampil}", "butuh": butuh_qty, "stok": "-", "sisa": -butuh_qty
+                    "sku": "?", "nama": f"⚠️ {nama_tampil}", "butuh": butuh_qty, "stok": "-", "sisa": -butuh_qty,
+                    "warna_sort": "zz", "size_sort": "zz" # Taruh paling bawah kalau error
                 })
                 
         conn.close()
-        hasil_rekap.sort(key=lambda x: x['sisa'] if isinstance(x['sisa'], int) else -9999)
+        
+        # 🧠 LOGIKA MENGURUTKAN BARANG (SORTING KUSTOM) 🧠
+        urutan_warna = {"light blue": 1, "snow hitam": 2, "snow biru": 3}
+        urutan_size = {"s": 1, "m": 2, "l": 3, "xl": 4, "8": 5, "9": 6, "10": 7}
+        
+        def aturan_urut(item):
+            # Prioritas 1: Warna, Prioritas 2: Size
+            warna_idx = urutan_warna.get(item['warna_sort'], 99)
+            size_idx = urutan_size.get(item['size_sort'], 99)
+            return (warna_idx, size_idx)
+            
+        hasil_rekap.sort(key=aturan_urut)
+        
         return jsonify({"status": "sukses", "data": hasil_rekap})
     except Exception as e:
         return jsonify({"status": "error", "pesan": f"Gagal membaca file: {str(e)}"})
