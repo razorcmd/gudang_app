@@ -163,14 +163,19 @@ def upload_csv():
             except: file_str = file_bytes.decode('cp1252')
                 
         stream = io.StringIO(file_str, newline=None)
-        try:
-            dialect = csv.Sniffer().sniff(file_str[:2048])
-            csv_input = csv.DictReader(stream, dialect=dialect)
-        except:
-            stream.seek(0)
-            csv_input = csv.DictReader(stream, delimiter=',')
+first_line = file_str.split('\n')[0]
+        if ';' in first_line:
+            pemisah = ';'
+        elif '\t' in first_line:
+            pemisah = '\t'
+        else:
+            pemisah = ','
+            
+        stream.seek(0)
+        csv_input = csv.DictReader(stream, delimiter=pemisah)
 
         rekap_pesanan = {}
+        
         for row in csv_input:
             produk = row.get('Product Name', '').strip()
             variasi = row.get('Variation', '').strip()
@@ -180,6 +185,7 @@ def upload_csv():
             if 'CANCEL' in status or 'BATAL' in status: continue
             if not produk and not variasi: continue
             
+            # Abaikan baris ke-2 dari TikTok yang isinya cuma teks penjelasan
             try: qty = int(qty_str)
             except: qty = 0
             if qty == 0: continue
@@ -187,7 +193,8 @@ def upload_csv():
             kunci_rekap = f"{produk} || {variasi}"
             rekap_pesanan[kunci_rekap] = rekap_pesanan.get(kunci_rekap, 0) + qty
 
-        if not rekap_pesanan: return jsonify({"status": "error", "pesan": "Format CSV salah / kosong."})
+        if not rekap_pesanan:
+            return jsonify({"status": "error", "pesan": "Tidak ada data pesanan valid. Pastikan ada kolom Product Name, Variation, dan Quantity."})
 
         conn = database.get_db_connection()
         stok_semua = conn.execute("SELECT sku, varian, size, jumlah_gudang, kategori FROM stok").fetchall()
