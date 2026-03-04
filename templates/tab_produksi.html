@@ -5,8 +5,9 @@
         <div style="font-size: 36px; font-weight: bold; color: #f1c40f; margin-bottom: 15px;">{{ total_mentahan }} ptg</div>
         <div class="form-input">
             <input type="text" id="mModel" class="input-box" placeholder="Model" value="Cargo">
-            <select id="mSize" class="input-box input-size" style="padding: 10px; flex: none; max-width: 80px;">
+            <select id="mSize" class="input-box input-size" style="padding: 10px; flex: none; max-width: 95px;">
                 <option value="S">S</option><option value="M">M</option><option value="L">L</option><option value="XL">XL</option><option value="8">8</option><option value="9">9</option><option value="10">10</option>
+                <option value="Campur">Campur</option>
             </select>
         </div>
         <div class="form-input">
@@ -40,18 +41,21 @@
     </div>
 
     <h3>📊 Pantauan Produksi per Batch</h3>
-    {% for batch_name, items in produksi_grouped.items() %}
+    {% for batch_name, data in produksi_grouped.items() %}
     <div class="card track-card" style="border-left-color: #9b59b6;">
         <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #eee; padding-bottom: 8px; margin-bottom: 10px;">
-            <div style="font-weight: bold; color: #8e44ad; font-size: 14px;">📦 {{ batch_name }}</div>
+            <div>
+                <div style="font-weight: bold; color: #8e44ad; font-size: 14px;">📦 {{ batch_name }}</div>
+                <div style="font-size: 13px; color: #e67e22; margin-top: 4px;">Total Batch: <strong style="font-size: 16px;">{{ data.grand_total }}</strong> Pcs</div>
+            </div>
             <div style="display: flex; gap: 4px; flex-direction: column;">
-                {% set batch_ids = items | map(attribute='id') | list | tojson %}
+                {% set batch_ids = data.items | map(attribute='id') | list | tojson %}
                 <button class="btn" style="background: #3498db; padding: 4px 6px; font-size: 10px;" onclick='pindahBatchSemua({{ batch_ids }}, "ke_finishing")'>➔ All Finish</button>
                 <button class="btn" style="background: #e67e22; padding: 4px 6px; font-size: 10px;" onclick='pindahBatchSemua({{ batch_ids }}, "ke_gudang")'>➔ All Gudang</button>
             </div>
         </div>
         
-        {% for p in items %}
+        {% for p in data.items %}
         <div style="margin-bottom: 15px;">
             <div style="display: flex; justify-content: space-between; font-weight: bold; color: #34495e;">
                 <span>{{ p.model }} (Size {{ p.size }})</span>
