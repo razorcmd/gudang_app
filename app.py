@@ -117,6 +117,30 @@ def update_progress():
     conn.close()
     return jsonify({"status": "sukses"})
 
+@app.route('/update_progress_bulk', methods=['POST'])
+def update_progress_bulk():
+    data = request.get_json()
+    ids = data['ids']
+    aksi = data['aksi']
+    
+    conn = database.get_db_connection()
+    for batch_id in ids:
+        batch = conn.execute("SELECT * FROM produksi WHERE id = ?", (batch_id,)).fetchone()
+        if not batch: continue
+        
+        if aksi == 'ke_finishing':
+            qty = batch['di_cuci']
+            if qty > 0:
+                conn.execute("UPDATE produksi SET di_cuci = 0, di_finishing = di_finishing + ? WHERE id = ?", (qty, batch_id))
+        elif aksi == 'ke_gudang':
+            qty = batch['di_finishing']
+            if qty > 0:
+                conn.execute("UPDATE produksi SET di_finishing = 0, selesai = selesai + ? WHERE id = ?", (qty, batch_id))
+                
+    conn.commit()
+    conn.close()
+    return jsonify({"status": "sukses"})
+
 @app.route('/manifest.json')
 def serve_manifest(): return send_from_directory('.', 'manifest.json')
 @app.route('/sw.js')

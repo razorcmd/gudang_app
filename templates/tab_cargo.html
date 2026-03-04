@@ -1,12 +1,12 @@
 <div id="tab-cargo" class="tab-content">
     <h2 style="text-align: center;">📦 Gudang 1 (Cargo)</h2>
     
-    <div class="card" style="padding: 10px;">
-        <canvas id="cargoChart" height="200"></canvas>
+    <div class="card" style="padding: 10px; height: 500px; overflow-y: auto;">
+        <canvas id="cargoChart" style="min-height: 480px;"></canvas>
     </div>
 
     <div style="position: sticky; top: 0; background: #f4f4f9; padding: 10px 0; z-index: 100;">
-        <input type="text" id="searchCargo" class="input-box" style="width: 100%; box-sizing: border-box; font-size: 16px; padding: 12px; border-radius: 8px;" placeholder="🔍 Cari warna atau size Cargo..." onkeyup="cariBarang('cargo')">
+        <input type="text" id="searchCargo" class="input-box" style="width: 100%; box-sizing: border-box; padding: 12px; border-radius: 8px;" placeholder="🔍 Cari warna atau size Cargo..." onkeyup="cariBarang('cargo')">
     </div>
 
     {% for barang in cargo %}
@@ -32,7 +32,6 @@
     document.addEventListener('DOMContentLoaded', function() {
         const ctx = document.getElementById('cargoChart').getContext('2d');
         
-        // Bikin peta lokasi data biar grafiknya bisa di-update otomatis pas klik tombol +/-
         window.skuToIndex = {
             {% for b in cargo %} "{{ b.sku }}": {{ loop.index0 }}, {% endfor %}
         };
@@ -40,9 +39,9 @@
         window.cargoChartInstance = new Chart(ctx, {
             type: 'bar',
             data: {
-                labels: [{% for b in cargo %} "{{ b.varian }} {{ b.size }}", {% endfor %}],
+                labels: [{% for b in cargo %} "{{ b.varian }} ({{ b.size }})", {% endfor %}],
                 datasets: [{
-                    label: 'Stok Cargo (Pcs)',
+                    label: 'Stok (Pcs)',
                     data: [{% for b in cargo %} {{ b.jumlah_gudang }}, {% endfor %}],
                     backgroundColor: '#3498db',
                     borderRadius: 4
@@ -50,12 +49,19 @@
             },
             options: {
                 responsive: true,
-                scales: { y: { beginAtZero: true } },
-                plugins: { legend: { display: false } } // Sembunyiin legend biar hemat tempat di layar HP
+                maintainAspectRatio: false,
+                indexAxis: 'y', // MENGUBAH GRAFIK JADI TIDURAN (HORIZONTAL)
+                scales: { 
+                    x: { beginAtZero: true },
+                    y: { 
+                        ticks: { autoSkip: false }, // MENGPAKSA SEMUA 21 NAMA MUNCUL
+                        grid: { display: false }
+                    } 
+                },
+                plugins: { legend: { display: false } }
             }
         });
 
-        // Fungsi rahasia untuk update grafik secara real-time
         window.updateChartData = function(sku, newValue) {
             const index = window.skuToIndex[sku];
             if(index !== undefined) {

@@ -1,17 +1,15 @@
 <!DOCTYPE html>
 <html lang="id">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
     <title>Gudang App</title>
     <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#3498db">
-    
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
-
     {% include 'tab_produksi.html' %}
     {% include 'tab_cargo.html' %}
     {% include 'tab_campuran.html' %}
@@ -21,7 +19,6 @@
         <div class="nav-item" onclick="switchTab('cargo', this)"><span class="nav-icon">📦</span> CARGO</div>
         <div class="nav-item" onclick="switchTab('campuran', this)"><span class="nav-icon">🗃️</span> CAMPURAN</div>
     </div>
-
     <script src="{{ url_for('static', filename='script.js') }}"></script>
 </body>
 </html>

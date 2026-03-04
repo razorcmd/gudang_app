@@ -1,3 +1,22 @@
+function pindahBatchSemua(ids, aksi) {
+    let namaTujuan = aksi === 'ke_finishing' ? 'FINISHING' : 'GUDANG';
+    if(!confirm(`Yakin mau memindahkan SEMUA sisa barang di batch ini ke ${namaTujuan}?`)) return;
+
+    fetch('/update_progress_bulk', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ids: ids, aksi: aksi})
+    })
+    .then(res => res.json())
+    .then(res => {
+        if(res.status == 'error') alert(res.pesan);
+        else {
+            if(aksi == 'ke_gudang') alert("Sukses masuk Gudang! Jangan lupa tambah stoknya di Tab Cargo/Campuran ya.");
+            window.location.reload();
+        }
+    });
+}
+
 function switchTab(tabId, element) {
     document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
     document.querySelectorAll('.nav-item').forEach(nav => nav.classList.remove('active'));

@@ -11,7 +11,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; padding: 15px
 .btn { padding: 10px; font-size: 14px; border: none; border-radius: 8px; color: white; font-weight: bold; cursor: pointer; text-align: center;}
 
 .form-input { display: flex; gap: 10px; margin-bottom: 10px;}
-.input-box { padding: 10px; border-radius: 8px; border: 1px solid #ccc; font-size: 14px; flex: 1; box-sizing: border-box; min-width: 0;}
+.input-box { padding: 10px; border-radius: 8px; border: 1px solid #ccc; font-size: 16px; flex: 1; box-sizing: border-box; min-width: 0;}
 .input-size { max-width: 60px; flex: none; text-align: center;} 
 
 .track-card { border-left: 5px solid #3498db; }

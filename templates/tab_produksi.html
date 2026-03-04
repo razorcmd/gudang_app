@@ -6,13 +6,7 @@
         <div class="form-input">
             <input type="text" id="mModel" class="input-box" placeholder="Model" value="Cargo">
             <select id="mSize" class="input-box input-size" style="padding: 10px; flex: none; max-width: 80px;">
-                <option value="S">S</option>
-                <option value="M">M</option>
-                <option value="L">L</option>
-                <option value="XL">XL</option>
-                <option value="8">8</option>
-                <option value="9">9</option>
-                <option value="10">10</option>
+                <option value="S">S</option><option value="M">M</option><option value="L">L</option><option value="XL">XL</option><option value="8">8</option><option value="9">9</option><option value="10">10</option>
             </select>
         </div>
         <div class="form-input">
@@ -26,26 +20,18 @@
         <div class="form-input">
             <select id="kVendor" class="input-box">
                 <option value="" disabled selected>-- Tempat --</option>
-                <option value="Cuci D">Cuci D</option>
-                <option value="Cuci T">Cuci T</option>
+                <option value="Cuci D">Cuci D</option><option value="Cuci T">Cuci T</option>
             </select>
             <select id="kWarnaBatch" class="input-box">
                 <option value="" disabled selected>-- Warna --</option>
-                <option value="Snow Hitam">Snow Hitam</option>
-                <option value="Snow Biru">Snow Biru</option>
-                <option value="Light Blue">Light Blue</option>
+                <option value="Snow Hitam">Snow Hitam</option><option value="Snow Biru">Snow Biru</option><option value="Light Blue">Light Blue</option>
             </select>
         </div>
-        
-        <p style="font-size: 12px; color: #7f8c8d; margin-top: 0; margin-bottom: 10px;">Centang mentahan yang mau dikirim di batch ini:</p>
         <div id="list-mentahan-kirim">
             {% for m in mentahan %}
             <div style="display: flex; gap: 5px; align-items: center; margin-bottom: 8px; background: #f8f9fa; padding: 8px; border-radius: 6px; border: 1px solid #eee;">
                 <input type="checkbox" class="chk-mentahan" value="{{ m.id }}" data-model="{{ m.model }}" data-size="{{ m.size }}" data-max="{{ m.jumlah }}" style="transform: scale(1.3); margin-right: 5px;">
-                <div style="flex: 1; font-size: 13px;">
-                    <strong>{{ m.model }} ({{ m.size }})</strong><br>
-                    <span style="font-size: 11px; color: #e67e22;">Stok: {{ m.jumlah }} ptg</span>
-                </div>
+                <div style="flex: 1; font-size: 13px;"><strong>{{ m.model }} ({{ m.size }})</strong><br><span style="font-size: 11px; color: #e67e22;">Stok: {{ m.jumlah }} ptg</span></div>
                 <input type="number" class="input-box qty-kirim" placeholder="Qty" style="width: 60px; padding: 6px;" max="{{ m.jumlah }}" inputmode="numeric" pattern="[0-9]*">
             </div>
             {% endfor %}
@@ -56,9 +42,14 @@
     <h3>📊 Pantauan Produksi per Batch</h3>
     {% for batch_name, items in produksi_grouped.items() %}
     <div class="card track-card" style="border-left-color: #9b59b6;">
-        <h4 style="margin: 0 0 10px 0; border-bottom: 2px solid #eee; padding-bottom: 8px; color: #2c3e50;">
-            📦 Batch: <span style="color: #8e44ad;">{{ batch_name }}</span>
-        </h4>
+        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #eee; padding-bottom: 8px; margin-bottom: 10px;">
+            <div style="font-weight: bold; color: #8e44ad; font-size: 14px;">📦 {{ batch_name }}</div>
+            <div style="display: flex; gap: 4px; flex-direction: column;">
+                {% set batch_ids = items | map(attribute='id') | list | tojson %}
+                <button class="btn" style="background: #3498db; padding: 4px 6px; font-size: 10px;" onclick='pindahBatchSemua({{ batch_ids }}, "ke_finishing")'>➔ All Finish</button>
+                <button class="btn" style="background: #e67e22; padding: 4px 6px; font-size: 10px;" onclick='pindahBatchSemua({{ batch_ids }}, "ke_gudang")'>➔ All Gudang</button>
+            </div>
+        </div>
         
         {% for p in items %}
         <div style="margin-bottom: 15px;">
@@ -72,7 +63,7 @@
                     <div style="font-size: 18px; font-weight: bold; color: #3498db;">{{ p.di_cuci }}</div>
                     {% if p.di_cuci > 0 %}
                     <div style="display: flex; gap: 4px; margin-top: 5px;">
-                        <button class="btn" style="background: #3498db; padding: 6px; font-size: 10px; flex: 1;" onclick="bukaModal({{ p.id }}, 'ke_finishing', 'Berapa potong yang turun ke Finishing?')">Sebagian</button>
+                        <button class="btn" style="background: #3498db; padding: 6px; font-size: 10px; flex: 1;" onclick="bukaModal({{ p.id }}, 'ke_finishing', 'Turun ke Finishing?')">Sebagian</button>
                         <button class="btn" style="background: #2ecc71; padding: 6px; font-size: 10px;" onclick="kirimProgress({{ p.id }}, 'ke_finishing', {{ p.di_cuci }})" title="Pindah Semua">✔️</button>
                     </div>
                     {% endif %}
@@ -82,7 +73,7 @@
                     <div style="font-size: 18px; font-weight: bold; color: #e67e22;">{{ p.di_finishing }}</div>
                     {% if p.di_finishing > 0 %}
                     <div style="display: flex; gap: 4px; margin-top: 5px;">
-                        <button class="btn" style="background: #e67e22; padding: 6px; font-size: 10px; flex: 1;" onclick="bukaModal({{ p.id }}, 'ke_gudang', 'Berapa potong yang masuk ke Gudang?')">Sebagian</button>
+                        <button class="btn" style="background: #e67e22; padding: 6px; font-size: 10px; flex: 1;" onclick="bukaModal({{ p.id }}, 'ke_gudang', 'Masuk ke Gudang?')">Sebagian</button>
                         <button class="btn" style="background: #2ecc71; padding: 6px; font-size: 10px;" onclick="kirimProgress({{ p.id }}, 'ke_gudang', {{ p.di_finishing }})" title="Pindah Semua">✔️</button>
                     </div>
                     {% endif %}
@@ -105,5 +96,4 @@
             </div>
         </div>
     </div>
-
 </div>
