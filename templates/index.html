@@ -19,6 +19,37 @@
     {% include 'tab_cargo.html' %}
     {% include 'tab_campuran.html' %}
 
+    <div style="text-align: center; margin-top: 10px; margin-bottom: 70px;">
+        <span onclick="document.getElementById('logModal').style.display='flex'" style="color: #e2e2e2; font-size: 10px; cursor: pointer;">system logs</span>
+    </div>
+
+    <div id="logModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 9999; align-items: center; justify-content: center;">
+        <div class="card" style="width: 90%; max-width: 350px; padding: 20px; max-height: 80vh; overflow-y: auto;">
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #eee; padding-bottom: 10px; margin-bottom: 10px;">
+                <h4 style="margin: 0; color: #2c3e50;">🕵️ Riwayat Pergerakan</h4>
+                <span onclick="document.getElementById('logModal').style.display='none'" style="font-size: 20px; font-weight: bold; color: #e74c3c; cursor: pointer;">&times;</span>
+            </div>
+            {% for log in logs %}
+            <div style="font-size: 13px; border-bottom: 1px solid #f8f9fa; padding: 8px 0; display: flex; align-items: flex-start;">
+                {% if 'Masuk' in log.keterangan %}<span style="color: #2ecc71; margin-right: 8px;">⬇️</span>
+                {% else %}<span style="color: #e74c3c; margin-right: 8px;">⬆️</span>{% endif %}
+                <div><span style="color: #7f8c8d; font-size: 10px;">{{ log.waktu }}</span><br><strong>{{ log.keterangan }}</strong></div>
+            </div>
+            {% else %}
+            <div style="font-size: 12px; color: #95a5a6; text-align: center;">Belum ada aktivitas.</div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div id="rekapModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 9999; align-items: center; justify-content: center;">
+        <div class="card" style="width: 95%; max-width: 400px; padding: 20px; max-height: 85vh; display: flex; flex-direction: column;">
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #eee; padding-bottom: 10px; margin-bottom: 10px;">
+                <h4 id="rekapModalTitle" style="margin: 0; color: #2c3e50;">📊 Rekap Packing Pagi</h4>
+                <span onclick="document.getElementById('rekapModal').style.display='none'" style="font-size: 20px; font-weight: bold; color: #e74c3c; cursor: pointer;">&times;</span>
+            </div>
+            <div id="rekapModalBody" style="overflow-y: auto; flex: 1;"></div>
+        </div>
+    </div>
     <div class="bottom-nav">
         <div class="nav-item active" onclick="switchTab('cucian', this)"><span class="nav-icon">📊</span> PRODUKSI</div>
         <div class="nav-item" onclick="switchTab('cargo', this)"><span class="nav-icon">📦</span> CARGO</div>

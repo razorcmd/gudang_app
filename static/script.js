@@ -150,3 +150,49 @@ function cariBarang(kategori) {
     });
 }
 if ('serviceWorker' in navigator) { navigator.serviceWorker.register('/sw.js'); }
+function prosesCSV(input) {
+    let file = input.files[0];
+    if(!file) return;
+    
+    let formData = new FormData();
+    formData.append("file", file);
+    
+    document.getElementById('rekapModalTitle').innerText = "Sedang menghitung...";
+    document.getElementById('rekapModalBody').innerHTML = "<div style='text-align:center; padding: 20px;'>Tunggu sebentar... ⏳</div>";
+    document.getElementById('rekapModal').style.display = 'flex';
+    
+    fetch('/upload_csv', { method: 'POST', body: formData })
+    .then(res => res.json())
+    .then(res => {
+        input.value = ""; 
+        if(res.status === 'error') {
+            alert("Gagal: " + res.pesan);
+            document.getElementById('rekapModal').style.display = 'none';
+        } else {
+            tampilkanRekap(res.data);
+        }
+    })
+    .catch(err => { alert("Gagal mengirim file."); document.getElementById('rekapModal').style.display = 'none'; });
+}
+
+function tampilkanRekap(data) {
+    document.getElementById('rekapModalTitle').innerText = "📊 Rekap Kebutuhan Packing";
+    let html = '<div style="font-size: 13px;">';
+    
+    data.forEach(item => {
+        let warnaSisa = item.sisa < 0 ? 'color: #e74c3c; font-weight: bold; font-size: 16px;' : 'color: #2ecc71; font-weight: bold; font-size: 14px;';
+        html += `
+        <div style="border-bottom: 1px solid #eee; padding: 10px 0; display: flex; justify-content: space-between; align-items: center;">
+            <div style="flex: 2;">
+                <strong style="color: #2c3e50;">${item.nama}</strong><br>
+                <span style="font-size: 11px; color: #7f8c8d;">${item.sku}</span>
+            </div>
+            <div style="flex: 1; text-align: center; border-left: 1px dashed #ccc;">Butuh:<br><strong style="color:#e67e22; font-size: 14px;">${item.butuh}</strong></div>
+            <div style="flex: 1; text-align: center; border-left: 1px dashed #ccc;">Stok:<br><strong style="font-size: 14px;">${item.stok}</strong></div>
+            <div style="flex: 1; text-align: right; border-left: 1px dashed #ccc; background: #f8f9fa; padding: 4px;">Sisa:<br><span style="${warnaSisa}">${item.sisa}</span></div>
+        </div>`;
+    });
+    
+    html += '</div>';
+    document.getElementById('rekapModalBody').innerHTML = html;
+}

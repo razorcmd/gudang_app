@@ -20,6 +20,11 @@ def init_db():
             total_pcs INTEGER, di_cuci INTEGER, di_finishing INTEGER, selesai INTEGER
         )
     ''')
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS log_aktivitas (
+            id INTEGER PRIMARY KEY AUTOINCREMENT, waktu TEXT, keterangan TEXT
+        )
+    ''')
     
     cursor = conn.cursor()
     cursor.execute('SELECT count(*) FROM stok')

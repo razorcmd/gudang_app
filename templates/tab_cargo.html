@@ -1,5 +1,11 @@
 <div id="tab-cargo" class="tab-content">
     <h2 style="text-align: center;">📦 Gudang 1 (Cargo)</h2>
+    <div style="margin-bottom: 15px; padding: 0 10px;">
+        <input type="file" id="csvFile" accept=".csv" style="display:none;" onchange="prosesCSV(this)">
+        <button class="btn" style="background: #8e44ad; width: 100%; font-size: 15px; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);" onclick="document.getElementById('csvFile').click()">
+            <span style="font-size: 20px;">📄</span> Rekap Packing (Upload CSV)
+        </button>
+    </div>
     
     <div class="card" style="padding: 10px; height: 500px; overflow-y: auto;">
         <canvas id="cargoChart" style="min-height: 480px;"></canvas>

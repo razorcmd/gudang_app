@@ -2,6 +2,9 @@ from flask import Flask, render_template, request, jsonify, send_from_directory
 import os
 from datetime import datetime
 import database 
+import csv
+import io
+import re
 
 app = Flask(__name__)
 
@@ -26,9 +29,10 @@ def home():
         produksi_grouped[batch_key]['grand_total'] += p['total_pcs']
         
     total_mentahan = conn.execute("SELECT SUM(jumlah) FROM mentahan").fetchone()[0] or 0
+    logs = conn.execute("SELECT * FROM log_aktivitas ORDER BY id DESC LIMIT 50").fetchall()
     conn.close()
     
-    return render_template('index.html', cargo=cargo, campuran=campuran, mentahan=mentahan, produksi_grouped=produksi_grouped, total_mentahan=total_mentahan)
+    return render_template('index.html', cargo=cargo, campuran=campuran, mentahan=mentahan, produksi_grouped=produksi_grouped, total_mentahan=total_mentahan, logs=logs)
 
 @app.route('/update_stok', methods=['POST'])
 def update_stok():
@@ -40,6 +44,11 @@ def update_stok():
     if stok_baru < 0: return jsonify({"status": "error", "pesan": "Stok kurang!"})
 
     conn.execute('UPDATE stok SET jumlah_gudang = ? WHERE sku = ?', (stok_baru, data['sku']))
+    # Sisipkan ini sebelum conn.commit()
+    waktu = datetime.now().strftime("%d %b %H:%M")
+    kata_aksi = "Masuk" if data['aksi'] == 'tambah' else "Keluar"
+    keterangan = f"{kata_aksi} {data['jumlah']} pcs (SKU: {data['sku']}). Sisa: {stok_baru}"
+    conn.execute("INSERT INTO log_aktivitas (waktu, keterangan) VALUES (?, ?)", (waktu, keterangan))
     conn.commit()
     conn.close()
     return jsonify({"status": "sukses", "stok_baru": stok_baru, "sku": data['sku']})
@@ -141,6 +150,89 @@ def update_progress_bulk():
     conn.commit()
     conn.close()
     return jsonify({"status": "sukses"})
+
+@app.route('/upload_csv', methods=['POST'])
+def upload_csv():
+    if 'file' not in request.files: return jsonify({"status": "error", "pesan": "Tidak ada file"})
+    file = request.files['file']
+    try:
+        file_bytes = file.stream.read()
+        try: file_str = file_bytes.decode('utf-8-sig')
+        except:
+            try: file_str = file_bytes.decode('utf-16')
+            except: file_str = file_bytes.decode('cp1252')
+                
+        stream = io.StringIO(file_str, newline=None)
+        try:
+            dialect = csv.Sniffer().sniff(file_str[:2048])
+            csv_input = csv.DictReader(stream, dialect=dialect)
+        except:
+            stream.seek(0)
+            csv_input = csv.DictReader(stream, delimiter=',')
+
+        rekap_pesanan = {}
+        for row in csv_input:
+            produk = row.get('Product Name', '').strip()
+            variasi = row.get('Variation', '').strip()
+            qty_str = row.get('Quantity', '0').strip()
+            status = row.get('Order Status', '').strip().upper()
+            
+            if 'CANCEL' in status or 'BATAL' in status: continue
+            if not produk and not variasi: continue
+            
+            try: qty = int(qty_str)
+            except: qty = 0
+            if qty == 0: continue
+            
+            kunci_rekap = f"{produk} || {variasi}"
+            rekap_pesanan[kunci_rekap] = rekap_pesanan.get(kunci_rekap, 0) + qty
+
+        if not rekap_pesanan: return jsonify({"status": "error", "pesan": "Format CSV salah / kosong."})
+
+        conn = database.get_db_connection()
+        stok_semua = conn.execute("SELECT sku, varian, size, jumlah_gudang, kategori FROM stok").fetchall()
+        
+        hasil_rekap = []
+        for kunci, butuh_qty in rekap_pesanan.items():
+            produk, variasi = kunci.split(" || ")
+            
+            variasi_normal = variasi.lower()
+            variasi_normal = variasi_normal.replace('8 (8tahun)', '8').replace('9 (9tahun)', '9').replace('10 (10 tahun)', '10')
+            
+            teks_cari_warna = f"{produk} {variasi_normal}".lower()
+            teks_cari_size = variasi_normal if variasi_normal else produk.lower()
+            
+            barang_cocok = None
+            for b in stok_semua:
+                varian_db = b['varian'].lower()
+                size_db = b['size'].lower()
+                
+                kata_varian = varian_db.split()
+                cocok_warna = all(kata in teks_cari_warna for kata in kata_varian)
+                cocok_size = re.search(r'\b' + re.escape(size_db) + r'\b', teks_cari_size)
+                
+                if cocok_warna and cocok_size:
+                    if 'cargo' in produk.lower() and b['kategori'] != 'CARGO': continue
+                    barang_cocok = b
+                    break
+            
+            if barang_cocok:
+                sisa = barang_cocok['jumlah_gudang'] - butuh_qty
+                hasil_rekap.append({
+                    "sku": barang_cocok['sku'], "nama": f"{barang_cocok['varian']} ({barang_cocok['size']})",
+                    "butuh": butuh_qty, "stok": barang_cocok['jumlah_gudang'], "sisa": sisa
+                })
+            else:
+                nama_tampil = variasi if variasi else produk[:30]
+                hasil_rekap.append({
+                    "sku": "?", "nama": f"⚠️ {nama_tampil}", "butuh": butuh_qty, "stok": "-", "sisa": -butuh_qty
+                })
+                
+        conn.close()
+        hasil_rekap.sort(key=lambda x: x['sisa'] if isinstance(x['sisa'], int) else -9999)
+        return jsonify({"status": "sukses", "data": hasil_rekap})
+    except Exception as e:
+        return jsonify({"status": "error", "pesan": f"Gagal membaca file: {str(e)}"})
 
 @app.route('/manifest.json')
 def serve_manifest(): return send_from_directory('.', 'manifest.json')
