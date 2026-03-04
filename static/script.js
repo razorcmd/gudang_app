@@ -150,6 +150,10 @@ function cariBarang(kategori) {
     });
 }
 if ('serviceWorker' in navigator) { navigator.serviceWorker.register('/sw.js'); }
+// --- LOGIKA UPLOAD & CETAK CSV ---
+
+window.dataRekapPrint = []; // Brankas sementara untuk nyimpen data sebelum dicetak
+
 function prosesCSV(input) {
     let file = input.files[0];
     if(!file) return;
@@ -159,6 +163,7 @@ function prosesCSV(input) {
     
     document.getElementById('rekapModalTitle').innerText = "Sedang menghitung...";
     document.getElementById('rekapModalBody').innerHTML = "<div style='text-align:center; padding: 20px;'>Tunggu sebentar... ⏳</div>";
+    document.getElementById('btnCetakRekap').style.display = 'none'; // Sembunyikan tombol cetak
     document.getElementById('rekapModal').style.display = 'flex';
     
     fetch('/upload_csv', { method: 'POST', body: formData })
@@ -169,7 +174,9 @@ function prosesCSV(input) {
             alert("Gagal: " + res.pesan);
             document.getElementById('rekapModal').style.display = 'none';
         } else {
+            window.dataRekapPrint = res.data; // Simpan data ke brankas
             tampilkanRekap(res.data);
+            document.getElementById('btnCetakRekap').style.display = 'block'; // Munculkan tombol cetak
         }
     })
     .catch(err => { alert("Gagal mengirim file."); document.getElementById('rekapModal').style.display = 'none'; });
@@ -195,4 +202,71 @@ function tampilkanRekap(data) {
     
     html += '</div>';
     document.getElementById('rekapModalBody').innerHTML = html;
+}
+
+// 🖨️ FUNGSI BARU: CETAK KE PRINTER THERMAL
+function cetakRekap() {
+    // Buka tab tersembunyi
+    let printWindow = window.open('', '_blank');
+    let today = new Date();
+    let dateStr = today.getDate() + '/' + (today.getMonth()+1) + '/' + today.getFullYear() + ' ' + today.getHours() + ':' + today.getMinutes();
+
+    // Buat desain khusus hitam putih (karena printer thermal ga ada warna)
+    let html = `
+    <html>
+    <head>
+        <title>Picking List - Pharadisa</title>
+        <style>
+            /* Paksa ukuran kertas 10x15 cm (100x150 mm) */
+            @page { size: 100mm 150mm; margin: 3mm; }
+            body { font-family: 'Arial', sans-serif; color: #000; margin: 0; padding: 0; font-size: 13px; }
+            h2 { text-align: center; margin: 5px 0 2px 0; font-size: 18px; text-transform: uppercase; border-bottom: 2px solid #000; padding-bottom: 5px; }
+            .date { text-align: center; font-size: 11px; margin-bottom: 10px; font-weight: bold; }
+            table { width: 100%; border-collapse: collapse; }
+            th, td { border: 1px solid #000; padding: 6px; text-align: left; vertical-align: middle; }
+            th { font-weight: bold; background-color: #f0f0f0; }
+            .qty { text-align: center; font-size: 18px; font-weight: bold; width: 35px; }
+            .check { width: 25px; text-align: center; }
+            .box { display: inline-block; width: 16px; height: 16px; border: 1px solid #000; }
+            .item-name { font-size: 14px; font-weight: bold; line-height: 1.2; }
+        </style>
+    </head>
+    <body>
+        <h2>📦 PICKING LIST CARGO</h2>
+        <div class="date">Waktu Cetak: ${dateStr}</div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Warna & Size</th>
+                    <th class="qty">Qty</th>
+                    <th class="check">Cek</th>
+                </tr>
+            </thead>
+            <tbody>
+    `;
+
+    window.dataRekapPrint.forEach(item => {
+        html += `
+            <tr>
+                <td class="item-name">${item.nama}</td>
+                <td class="qty">${item.butuh}</td>
+                <td class="check"><div class="box"></div></td>
+            </tr>
+        `;
+    });
+
+    html += `
+            </tbody>
+        </table>
+        <div style="text-align: center; margin-top: 10px; font-size: 10px;">Pharadisa Stock &copy; ${today.getFullYear()}</div>
+        <script>
+            // Otomatis perintahin browser untuk ngeprint pas halamannya kebuka
+            window.onload = function() { window.print(); window.close(); }
+        </script>
+    </body>
+    </html>
+    `;
+
+    printWindow.document.write(html);
+    printWindow.document.close();
 }
