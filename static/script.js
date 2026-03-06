@@ -25,19 +25,27 @@ function switchTab(tabId, element) {
     window.scrollTo(0, 0);
 }
 
+let kunciTombol = false;
+let kunciGudang = {}; // Kunci khusus per barang biar nggak tabrakan
+
 function simpanMentahan() {
-    let modelInput = document.getElementById('mModel').value.trim();
+    // Kalau gembok masih tertutup (masih proses), abaikan klik tambahan!
+    if(kunciTombol) return; 
     
+    let modelInput = document.getElementById('mModel').value.trim();
     let data = {
-        model: modelInput !== "" ? modelInput : "Cargo", // Kalau nggak sengaja kehapus, otomatis isi Cargo
+        model: modelInput !== "" ? modelInput : "Cargo",
         size: document.getElementById('mSize').value, 
         jumlah: document.getElementById('mQty').value
     };
     
     if(!data.size || !data.jumlah) { alert("Size dan Jumlah wajib diisi!"); return; }
     
+    kunciTombol = true; // 🔒 Tutup gembok!
+    
     fetch('/tambah_mentahan', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data) })
-    .then(() => window.location.reload());
+    .then(() => window.location.reload())
+    .catch(() => kunciTombol = false); // Buka gembok kalau error/gagal jaringan
 }
 
 function kirimCuciMassal() {
@@ -120,18 +128,27 @@ function kirimProgress(id, aksi, qty) {
 // --------------------------------------------
 
 function updateGudang(sku, aksi, jumlah) {
-    fetch('/update_stok', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sku: sku, aksi: aksi, jumlah: jumlah }) })
-    .then(res => res.json()).then(data => {
-        if(data.status === 'sukses') {
-            document.getElementById('stok-' + data.sku).innerText = data.stok_baru;
-            // Animasi chart otomatis berubah pas diklik tanpa perlu refresh web!
-            if(window.updateChartData) {
-                window.updateChartData(data.sku, data.stok_baru);
-            }
+    // Kalau barang ini masih diproses, abaikan klik!
+    if(kunciGudang[sku]) return; 
+    
+    kunciGudang[sku] = true; // 🔒 Tutup gembok khusus SKU ini!
+    
+    fetch('/update_stok', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({sku: sku, aksi: aksi, jumlah: jumlah})
+    })
+    .then(res => res.json())
+    .then(res => {
+        kunciGudang[sku] = false; // 🔓 Buka gembok setelah selesai!
+        if(res.status == 'error') {
+            alert(res.pesan);
         } else {
-            alert(data.pesan);
+            document.getElementById('stok-'+sku).innerText = res.stok_baru;
+            updateChartData(sku, res.stok_baru);
         }
-    });
+    })
+    .catch(() => kunciGudang[sku] = false); // 🔓 Buka gembok kalau error jaringan
 }
 function cariBarang(kategori) {
     let inputId = kategori === 'cargo' ? 'searchCargo' : 'searchCampuran';

@@ -74,7 +74,7 @@ def kirim_produksi_massal():
     items = data.get('items', [])
     
     conn = database.get_db_connection()
-    tgl = datetime.now().strftime("%d %b")
+    tgl = datetime.now().strftime("%d %b %H:%M")
     
     try:
         for item in items:
