@@ -176,8 +176,9 @@ def upload_csv():
                 # Import diam-diam di dalam fungsi biar server nggak crash
                 try:
                     import openpyxl
-                except ImportError:
-                    return jsonify({"status": "error", "pesan": "Modul openpyxl belum terinstall di server. Silakan install dulu via Bash."})
+                except Exception as e:
+                    # BONGKAR ERROR ASLINYA KE LAYAR
+                    return jsonify({"status": "error", "pesan": f"Sistem gagal memuat alat Excel. Error asli: {str(e)}"})
                 
                 wb = openpyxl.load_workbook(io.BytesIO(file_bytes), data_only=True)
                 
