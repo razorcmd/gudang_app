@@ -173,22 +173,21 @@ def upload_csv():
             
             # 🧠 JIKA FILE EXCEL SHOPEE (.xlsx)
             if nama_file.endswith('.xlsx'):
-                # 🕵️‍♂️ SISTEM DETEKTIF VERSI PYTHON
                 try:
                     import openpyxl
                 except Exception as e:
                     import sys
-                    # Melacak versi Python asli yang dipakai oleh Web Server
                     versi_python = '.'.join(sys.version.split('.')[:2]) 
-                    pesan_pintar = f"Web kamu pakai Python {versi_python}. Buka layar Bash, lalu ketik perintah ini: pip{versi_python} install openpyxl --user"
-                    return jsonify({"status": "error", "pesan": pesan_pintar})
+                    return jsonify({"status": "error", "pesan": f"Gagal memuat Excel. Di Bash ketik: pip{versi_python} install openpyxl -t ."})
                 
                 wb = openpyxl.load_workbook(io.BytesIO(file_bytes), data_only=True)
                 
-                if len(wb.worksheets) > 1:
-                    sheet = wb.worksheets[1]
-                else:
-                    sheet = wb.active 
+                # 🕵️‍♂️ FIX: Mesin otomatis mencari Sheet "orders" yang datanya paling akurat
+                sheet = wb.active 
+                for s in wb.worksheets:
+                    if 'order' in s.title.lower() or 'pesanan' in s.title.lower():
+                        sheet = s
+                        break
                         
                 headers = [str(cell.value).strip() if cell.value is not None else '' for cell in sheet[1]]
                 for row in sheet.iter_rows(min_row=2, values_only=True):
@@ -224,6 +223,7 @@ def upload_csv():
                 status_sh_2 = (row.get('Status Pembatalan/ Pengembalian') or '').strip().upper()
                 status_gabungan = f"{status_tk} {status_sh_1} {status_sh_2}"
                 
+                # Saring ketat pesanan yang batal agar tidak ikut terhitung
                 if 'CANCEL' in status_gabungan or 'BATAL' in status_gabungan: continue
                 if not produk and not variasi: continue
                 
