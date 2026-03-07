@@ -173,20 +173,22 @@ def upload_csv():
             
             # 🧠 JIKA FILE EXCEL SHOPEE (.xlsx)
             if nama_file.endswith('.xlsx'):
-                # Import diam-diam di dalam fungsi biar server nggak crash
+                # 🕵️‍♂️ SISTEM DETEKTIF VERSI PYTHON
                 try:
                     import openpyxl
                 except Exception as e:
-                    # BONGKAR ERROR ASLINYA KE LAYAR
-                    return jsonify({"status": "error", "pesan": f"Sistem gagal memuat alat Excel. Error asli: {str(e)}"})
+                    import sys
+                    # Melacak versi Python asli yang dipakai oleh Web Server
+                    versi_python = '.'.join(sys.version.split('.')[:2]) 
+                    pesan_pintar = f"Web kamu pakai Python {versi_python}. Buka layar Bash, lalu ketik perintah ini: pip{versi_python} install openpyxl --user"
+                    return jsonify({"status": "error", "pesan": pesan_pintar})
                 
                 wb = openpyxl.load_workbook(io.BytesIO(file_bytes), data_only=True)
                 
-                # Sesuai instruksimu: Targetkan Sheet Kedua (index 1)
                 if len(wb.worksheets) > 1:
                     sheet = wb.worksheets[1]
                 else:
-                    sheet = wb.active # Jaga-jaga kalau ternyata cuma ada 1 sheet
+                    sheet = wb.active 
                         
                 headers = [str(cell.value).strip() if cell.value is not None else '' for cell in sheet[1]]
                 for row in sheet.iter_rows(min_row=2, values_only=True):
@@ -213,11 +215,8 @@ def upload_csv():
 
             # --- PROSES PENGGABUNGAN DATA ---
             for row in row_dicts:
-                # Pakai metode aman biar nggak error kalau kolomnya kosong/tidak ada
                 produk = (row.get('Product Name') or row.get('Nama Produk') or '').strip()
                 variasi = (row.get('Variation') or row.get('Nama Variasi') or '').strip()
-                
-                # Di Shopee kadang tidak ada kolom Jumlah/Quantity, otomatis diset 1
                 qty_str = (row.get('Quantity') or row.get('Jumlah') or '1').strip() 
                 
                 status_tk = (row.get('Order Status') or '').strip().upper()
