@@ -5,6 +5,7 @@ import database
 import csv
 import io
 import re
+import openpyxl
 
 app = Flask(__name__)
 
@@ -163,7 +164,6 @@ def update_progress_bulk():
 
 @app.route('/upload_csv', methods=['POST'])
 def upload_csv():
-    # Mengambil BANYAK file sekaligus (bisa 1 atau lebih)
     files = request.files.getlist('file')
     if not files or files[0].filename == '':
         return jsonify({"status": "error", "pesan": "Tidak ada file"})
@@ -172,30 +172,45 @@ def upload_csv():
 
     for file in files:
         try:
-            file_bytes = file.stream.read()
-            try: file_str = file_bytes.decode('utf-8-sig')
-            except:
-                try: file_str = file_bytes.decode('utf-16')
-                except: file_str = file_bytes.decode('cp1252')
-                    
-            stream = io.StringIO(file_str, newline=None)
+            row_dicts = []
+            nama_file = file.filename.lower()
             
-            first_line = file_str.split('\n')[0]
-            if ';' in first_line: pemisah = ';'
-            elif '\t' in first_line: pemisah = '\t'
-            else: pemisah = ','
+            # 🧠 JIKA FILE SHOPEE (.xlsx)
+            if nama_file.endswith('.xlsx'):
+                wb = openpyxl.load_workbook(file, data_only=True)
+                # Sesuai permintaanmu: Baca langsung dari Sheet Kedua (index 1)
+                sheet = wb.worksheets[1] if len(wb.sheetnames) > 1 else wb.active
                 
-            stream.seek(0)
-            csv_input = csv.DictReader(stream, delimiter=pemisah)
+                headers = [str(cell.value).strip() if cell.value is not None else '' for cell in sheet[1]]
+                for row in sheet.iter_rows(min_row=2, values_only=True):
+                    if not any(row): continue
+                    row_dict = {headers[i]: str(row[i]) if i < len(row) and row[i] is not None else '' for i in range(len(headers))}
+                    row_dicts.append(row_dict)
+                    
+            # 🧠 JIKA FILE TIKTOK (.csv)
+            else:
+                file_bytes = file.stream.read()
+                try: file_str = file_bytes.decode('utf-8-sig')
+                except:
+                    try: file_str = file_bytes.decode('utf-16')
+                    except: file_str = file_bytes.decode('cp1252')
+                        
+                stream = io.StringIO(file_str, newline=None)
+                first_line = file_str.split('\n')[0]
+                if ';' in first_line: pemisah = ';'
+                elif '\t' in first_line: pemisah = '\t'
+                else: pemisah = ','
+                    
+                stream.seek(0)
+                csv_input = csv.DictReader(stream, delimiter=pemisah)
+                row_dicts = list(csv_input)
 
-            for row in csv_input:
-                # 🧠 SISTEM DETEKSI OTOMATIS TIKTOK & SHOPEE
+            # --- PROSES GABUNGAN (BERLAKU UNTUK KEDUANYA) ---
+            for row in row_dicts:
                 produk = row.get('Product Name', row.get('Nama Produk', '')).strip()
                 variasi = row.get('Variation', row.get('Nama Variasi', '')).strip()
-                # Jika format Shopee Advance tidak ada kolom Jumlah, otomatis anggap 1
                 qty_str = row.get('Quantity', row.get('Jumlah', '1')).strip() 
                 
-                # Cek status batal dari kedua platform
                 status_tk = row.get('Order Status', '').strip().upper()
                 status_sh_1 = row.get('Status Pesanan', '').strip().upper()
                 status_sh_2 = row.get('Status Pembatalan/ Pengembalian', '').strip().upper()
@@ -208,13 +223,11 @@ def upload_csv():
                 except: qty = 1 
                 if qty == 0: continue
                 
-                # Filter Kata Kunci (Karena Shopee judulnya lebih pendek: "Celana Panjang Anak Cargo Usia 1-8")
                 if 'celana panjang anak cargo' not in produk.lower():
                     continue
                 
-                # 🧠 PENERJEMAH BAHASA SHOPEE & TIKTOK
                 variasi_normal = variasi.lower()
-                variasi_normal = variasi_normal.replace('snow black', 'snow hitam') # Terjemahan Shopee
+                variasi_normal = variasi_normal.replace('snow black', 'snow hitam') # Terjemahan warna Shopee
                 variasi_normal = variasi_normal.replace('8 (tahun)', '8').replace('8 (8tahun)', '8').replace('9 (9tahun)', '9').replace('10 (10 tahun)', '10')
                 
                 kunci_rekap = f"{produk} || {variasi_normal}"
