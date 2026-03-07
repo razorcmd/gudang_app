@@ -5,7 +5,6 @@ import database
 import csv
 import io
 import re
-# ❌ import openpyxl DIHAPUS DARI SINI BIAR SERVER NGGAK CRASH!
 
 app = Flask(__name__)
 
@@ -182,7 +181,7 @@ def upload_csv():
                 
                 wb = openpyxl.load_workbook(io.BytesIO(file_bytes), data_only=True)
                 
-                # 🕵️‍♂️ FIX: Mesin otomatis mencari Sheet "orders" yang datanya paling akurat
+                # Cari otomatis Sheet "orders" atau "pesanan" agar perhitungan tepat!
                 sheet = wb.active 
                 for s in wb.worksheets:
                     if 'order' in s.title.lower() or 'pesanan' in s.title.lower():
@@ -223,7 +222,6 @@ def upload_csv():
                 status_sh_2 = (row.get('Status Pembatalan/ Pengembalian') or '').strip().upper()
                 status_gabungan = f"{status_tk} {status_sh_1} {status_sh_2}"
                 
-                # Saring ketat pesanan yang batal agar tidak ikut terhitung
                 if 'CANCEL' in status_gabungan or 'BATAL' in status_gabungan: continue
                 if not produk and not variasi: continue
                 
@@ -231,7 +229,12 @@ def upload_csv():
                 except: qty = 1 
                 if qty == 0: continue
                 
-                if 'celana panjang anak cargo' not in produk.lower():
+                # 🧠 FILTER SUPER KETAT VIP (SHOPEE & TIKTOK) 🧠
+                produk_lower = produk.lower()
+                is_tiktok_cargo = 'celana panjang anak cargo pinggang full karet usia 1-8' in produk_lower
+                is_shopee_cargo = 'celana panjang anak cargo usia 1-8' in produk_lower
+                
+                if not (is_tiktok_cargo or is_shopee_cargo):
                     continue
                 
                 variasi_normal = variasi.lower()
@@ -239,6 +242,10 @@ def upload_csv():
                 variasi_normal = variasi_normal.replace('8 (tahun)', '8').replace('8 (8tahun)', '8').replace('9 (9tahun)', '9').replace('10 (10 tahun)', '10')
                 
                 kunci_rekap = f"{produk} || {variasi_normal}"
+                # Ubah nama panjang jadi singkatan biar laporannya rapi pas dicetak
+                nama_singkat = "Celana Cargo Anak"
+                kunci_rekap = f"{nama_singkat} || {variasi_normal}"
+                
                 rekap_pesanan[kunci_rekap] = rekap_pesanan.get(kunci_rekap, 0) + qty
 
         except Exception as e:
@@ -254,8 +261,8 @@ def upload_csv():
     for kunci, butuh_qty in rekap_pesanan.items():
         produk, variasi_normal = kunci.split(" || ")
         
-        teks_cari_warna = f"{produk} {variasi_normal}".lower()
-        teks_cari_size = variasi_normal if variasi_normal else produk.lower()
+        teks_cari_warna = variasi_normal
+        teks_cari_size = variasi_normal
         
         barang_cocok = None
         for b in stok_semua:
