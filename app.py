@@ -5,7 +5,7 @@ import database
 import csv
 import io
 import re
-import openpyxl
+# ❌ import openpyxl DIHAPUS DARI SINI BIAR SERVER NGGAK CRASH!
 
 app = Flask(__name__)
 
@@ -18,22 +18,18 @@ def home():
     campuran = conn.execute("SELECT * FROM stok WHERE kategori = 'CAMPURAN'").fetchall()
     mentahan = conn.execute("SELECT * FROM mentahan").fetchall()
     
-    # Logika pengelompokan batch yang baru (timpa yang lama)
     produksi_raw = conn.execute("SELECT * FROM produksi WHERE selesai < total_pcs ORDER BY id DESC").fetchall()
     produksi_grouped = {}
     for p in produksi_raw:
-        # Key asli di sistem (mengandung detik, jadi pasti terpisah)
         batch_key = f"{p['tanggal']} - {p['vendor_cuci']} ({p['warna_target']})"
         
         if batch_key not in produksi_grouped:
-            # Logika buang detik untuk tampilan layar
-            if p['tanggal'].count(':') == 2: # Kalau datanya ada detik (misal 14:30:45)
-                tanggal_tampil = p['tanggal'][:-3] # Gunting 3 karakter terakhir (buang :45)
+            if p['tanggal'].count(':') == 2: 
+                tanggal_tampil = p['tanggal'][:-3] 
             else:
-                tanggal_tampil = p['tanggal'] # Untuk data lama yang belum ada detiknya
+                tanggal_tampil = p['tanggal'] 
                 
             nama_tampil = f"{tanggal_tampil} - {p['vendor_cuci']} ({p['warna_target']})"
-            
             produksi_grouped[batch_key] = {'list_barang': [], 'grand_total': 0, 'nama_tampil': nama_tampil}
             
         produksi_grouped[batch_key]['list_barang'].append(p)
@@ -55,7 +51,6 @@ def update_stok():
     if stok_baru < 0: return jsonify({"status": "error", "pesan": "Stok kurang!"})
 
     conn.execute('UPDATE stok SET jumlah_gudang = ? WHERE sku = ?', (stok_baru, data['sku']))
-    # Sisipkan ini sebelum conn.commit()
     waktu = datetime.now().strftime("%d %b %H:%M")
     kata_aksi = "Masuk" if data['aksi'] == 'tambah' else "Keluar"
     keterangan = f"{kata_aksi} {data['jumlah']} pcs (SKU: {data['sku']}). Sisa: {stok_baru}"
@@ -81,7 +76,7 @@ def tambah_mentahan():
 def kirim_produksi_massal():
     data = request.get_json()
     vendor = data.get('vendor')
-    warna = data.get('warna') # Sekarang warnanya diambil satu untuk semua
+    warna = data.get('warna') 
     items = data.get('items', [])
     
     conn = database.get_db_connection()
@@ -174,23 +169,23 @@ def upload_csv():
         try:
             row_dicts = []
             nama_file = file.filename.lower()
-            file_bytes = file.read() # 🔒 Baca file di awal biar tidak error stream
+            file_bytes = file.read() 
             
             # 🧠 JIKA FILE EXCEL SHOPEE (.xlsx)
             if nama_file.endswith('.xlsx'):
+                # Import diam-diam di dalam fungsi biar server nggak crash
                 try:
                     import openpyxl
                 except ImportError:
-                    return jsonify({"status": "error", "pesan": "Modul Excel belum aktif. Buka Console Bash, ketik: pip install openpyxl"})
+                    return jsonify({"status": "error", "pesan": "Modul openpyxl belum terinstall di server. Silakan install dulu via Bash."})
                 
                 wb = openpyxl.load_workbook(io.BytesIO(file_bytes), data_only=True)
                 
-                # Cari otomatis Sheet yang isinya pesanan (biasanya namanya 'orders')
-                sheet = wb.active
-                for s in wb.worksheets:
-                    if 'order' in s.title.lower():
-                        sheet = s
-                        break
+                # Sesuai instruksimu: Targetkan Sheet Kedua (index 1)
+                if len(wb.worksheets) > 1:
+                    sheet = wb.worksheets[1]
+                else:
+                    sheet = wb.active # Jaga-jaga kalau ternyata cuma ada 1 sheet
                         
                 headers = [str(cell.value).strip() if cell.value is not None else '' for cell in sheet[1]]
                 for row in sheet.iter_rows(min_row=2, values_only=True):
@@ -215,11 +210,13 @@ def upload_csv():
                 csv_input = csv.DictReader(stream, delimiter=pemisah)
                 row_dicts = list(csv_input)
 
-            # --- PROSES GABUNGAN SHOPEE & TIKTOK ---
+            # --- PROSES PENGGABUNGAN DATA ---
             for row in row_dicts:
-                # Ambil data pakai pengaman .get() or '' biar nggak error kalau kolom kosong
+                # Pakai metode aman biar nggak error kalau kolomnya kosong/tidak ada
                 produk = (row.get('Product Name') or row.get('Nama Produk') or '').strip()
                 variasi = (row.get('Variation') or row.get('Nama Variasi') or '').strip()
+                
+                # Di Shopee kadang tidak ada kolom Jumlah/Quantity, otomatis diset 1
                 qty_str = (row.get('Quantity') or row.get('Jumlah') or '1').strip() 
                 
                 status_tk = (row.get('Order Status') or '').strip().upper()
@@ -248,7 +245,7 @@ def upload_csv():
             return jsonify({"status": "error", "pesan": f"Gagal membaca file {file.filename}: {str(e)}"})
 
     if not rekap_pesanan:
-        return jsonify({"status": "error", "pesan": "Tidak ada pesanan Cargo di file yang diupload."})
+        return jsonify({"status": "error", "pesan": "Tidak ada pesanan Cargo valid di file yang diupload."})
 
     conn = database.get_db_connection()
     stok_semua = conn.execute("SELECT sku, varian, size, jumlah_gudang, kategori FROM stok").fetchall()
