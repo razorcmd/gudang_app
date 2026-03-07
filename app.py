@@ -237,9 +237,19 @@ def upload_csv():
                 if not (is_tiktok_cargo or is_shopee_cargo):
                     continue
                 
+                # 🧠 PENYETRIKA TEKS (Biar TikTok & Shopee melebur jadi 1 baris) 🧠
                 variasi_normal = variasi.lower()
+                
+                # 1. Samakan warna Shopee ke TikTok
                 variasi_normal = variasi_normal.replace('snow black', 'snow hitam') 
-                variasi_normal = variasi_normal.replace('8 (tahun)', '8').replace('8 (8tahun)', '8').replace('9 (9tahun)', '9').replace('10 (10 tahun)', '10')
+                
+                # 2. Samakan format koma (TikTok pakai spasi ", " disetrika jadi "," kaya Shopee)
+                variasi_normal = variasi_normal.replace(', ', ',')
+                
+                # 3. Bersihkan embel-embel tahun biar sisa murni angka/huruf
+                variasi_normal = variasi_normal.replace('8 (tahun)', '8').replace('8 (8tahun)', '8')
+                variasi_normal = variasi_normal.replace('9 (9tahun)', '9')
+                variasi_normal = variasi_normal.replace('10 (10 tahun)', '10').replace('10 (10tahun)', '10')
                 
                 kunci_rekap = f"{produk} || {variasi_normal}"
                 # Ubah nama panjang jadi singkatan biar laporannya rapi pas dicetak
