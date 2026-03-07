@@ -162,7 +162,13 @@ def upload_csv():
     if not files or files[0].filename == '':
         return jsonify({"status": "error", "pesan": "Tidak ada file"})
 
-    rekap_pesanan = {}
+    # Ambil database Cargo dulu buat patokan "perjodohan"
+    conn = database.get_db_connection()
+    stok_semua = conn.execute("SELECT sku, varian, size, jumlah_gudang, kategori FROM stok WHERE kategori = 'CARGO'").fetchall()
+    
+    # Brankas baru yang dikelompokkan berdasarkan SKU Database, bukan teks CSV!
+    rekap_pesanan_db = {}
+    unmatched_pesanan = {}
 
     for file in files:
         try:
@@ -181,7 +187,6 @@ def upload_csv():
                 
                 wb = openpyxl.load_workbook(io.BytesIO(file_bytes), data_only=True)
                 
-                # Cari otomatis Sheet "orders" atau "pesanan" agar perhitungan tepat!
                 sheet = wb.active 
                 for s in wb.worksheets:
                     if 'order' in s.title.lower() or 'pesanan' in s.title.lower():
@@ -211,7 +216,7 @@ def upload_csv():
                 csv_input = csv.DictReader(stream, delimiter=pemisah)
                 row_dicts = list(csv_input)
 
-            # --- PROSES PENGGABUNGAN DATA ---
+            # --- PROSES PEMBACAAN DAN PERJODOHAN ---
             for row in row_dicts:
                 produk = (row.get('Product Name') or row.get('Nama Produk') or '').strip()
                 variasi = (row.get('Variation') or row.get('Nama Variasi') or '').strip()
@@ -222,6 +227,7 @@ def upload_csv():
                 status_sh_2 = (row.get('Status Pembatalan/ Pengembalian') or '').strip().upper()
                 status_gabungan = f"{status_tk} {status_sh_1} {status_sh_2}"
                 
+                # SATPAM 1: Buang yang Batal/Cancel
                 if 'CANCEL' in status_gabungan or 'BATAL' in status_gabungan: continue
                 if not produk and not variasi: continue
                 
@@ -229,81 +235,68 @@ def upload_csv():
                 except: qty = 1 
                 if qty == 0: continue
                 
-                # 🧠 FILTER SUPER KETAT VIP (SHOPEE & TIKTOK) 🧠
+                # SATPAM 2: Pastikan ini murni celana Cargo Anak
                 produk_lower = produk.lower()
-                is_tiktok_cargo = 'celana panjang anak cargo pinggang full karet usia 1-8' in produk_lower
+                is_tiktok_cargo = 'celana panjang anak cargo pinggang full karet' in produk_lower
                 is_shopee_cargo = 'celana panjang anak cargo usia 1-8' in produk_lower
                 
                 if not (is_tiktok_cargo or is_shopee_cargo):
                     continue
                 
-                # 🧠 PENYETRIKA TEKS (Biar TikTok & Shopee melebur jadi 1 baris) 🧠
-                variasi_normal = variasi.lower()
+                # Samakan terjemahan warna saja
+                variasi_normal = variasi.lower().replace('snow black', 'snow hitam') 
+                teks_cari = f"{produk_lower} {variasi_normal}"
                 
-                # 1. Samakan warna Shopee ke TikTok
-                variasi_normal = variasi_normal.replace('snow black', 'snow hitam') 
+                # 🧠 PROSES PERJODOHAN LANGSUNG KE DATABASE
+                barang_cocok = None
+                for b in stok_semua:
+                    kata_varian = b['varian'].lower().split()
+                    cocok_warna = all(k in teks_cari for k in kata_varian)
+                    # Regex ini sangat pintar, dia otomatis mengabaikan spasi atau kurung
+                    cocok_size = re.search(r'\b' + re.escape(b['size'].lower()) + r'\b', teks_cari)
+                    
+                    if cocok_warna and cocok_size:
+                        barang_cocok = b
+                        break
                 
-                # 2. Samakan format koma (TikTok pakai spasi ", " disetrika jadi "," kaya Shopee)
-                variasi_normal = variasi_normal.replace(', ', ',')
-                
-                # 3. Bersihkan embel-embel tahun biar sisa murni angka/huruf
-                variasi_normal = variasi_normal.replace('8 (tahun)', '8').replace('8 (8tahun)', '8')
-                variasi_normal = variasi_normal.replace('9 (9tahun)', '9')
-                variasi_normal = variasi_normal.replace('10 (10 tahun)', '10').replace('10 (10tahun)', '10')
-                
-                kunci_rekap = f"{produk} || {variasi_normal}"
-                # Ubah nama panjang jadi singkatan biar laporannya rapi pas dicetak
-                nama_singkat = "Celana Cargo Anak"
-                kunci_rekap = f"{nama_singkat} || {variasi_normal}"
-                
-                rekap_pesanan[kunci_rekap] = rekap_pesanan.get(kunci_rekap, 0) + qty
+                # Kalau jodoh ketemu, gabungkan berdasarkan KTP/SKU nya!
+                if barang_cocok:
+                    sku = barang_cocok['sku']
+                    if sku not in rekap_pesanan_db:
+                        rekap_pesanan_db[sku] = {'db_item': barang_cocok, 'qty': 0}
+                    rekap_pesanan_db[sku]['qty'] += qty
+                else:
+                    kunci_unmatched = f"⚠️ {variasi_normal if variasi_normal else produk[:30]}"
+                    unmatched_pesanan[kunci_unmatched] = unmatched_pesanan.get(kunci_unmatched, 0) + qty
 
         except Exception as e:
+            conn.close()
             return jsonify({"status": "error", "pesan": f"Gagal membaca file {file.filename}: {str(e)}"})
 
-    if not rekap_pesanan:
-        return jsonify({"status": "error", "pesan": "Tidak ada pesanan Cargo valid di file yang diupload."})
-
-    conn = database.get_db_connection()
-    stok_semua = conn.execute("SELECT sku, varian, size, jumlah_gudang, kategori FROM stok").fetchall()
-    
-    hasil_rekap = []
-    for kunci, butuh_qty in rekap_pesanan.items():
-        produk, variasi_normal = kunci.split(" || ")
-        
-        teks_cari_warna = variasi_normal
-        teks_cari_size = variasi_normal
-        
-        barang_cocok = None
-        for b in stok_semua:
-            varian_db = b['varian'].lower()
-            size_db = b['size'].lower()
-            
-            kata_varian = varian_db.split()
-            cocok_warna = all(kata in teks_cari_warna for kata in kata_varian)
-            cocok_size = re.search(r'\b' + re.escape(size_db) + r'\b', teks_cari_size)
-            
-            if cocok_warna and cocok_size:
-                if b['kategori'] != 'CARGO': continue
-                barang_cocok = b
-                break
-        
-        if barang_cocok:
-            sisa = barang_cocok['jumlah_gudang'] - butuh_qty
-            hasil_rekap.append({
-                "sku": barang_cocok['sku'], "nama": f"{barang_cocok['varian']} ({barang_cocok['size']})",
-                "butuh": butuh_qty, "stok": barang_cocok['jumlah_gudang'], "sisa": sisa,
-                "warna_sort": barang_cocok['varian'].lower(), "size_sort": barang_cocok['size'].lower()
-            })
-        else:
-            nama_tampil = variasi_normal if variasi_normal else produk[:30]
-            hasil_rekap.append({
-                "sku": "?", "nama": f"⚠️ {nama_tampil}", "butuh": butuh_qty, "stok": "-", "sisa": -butuh_qty,
-                "warna_sort": "zz", "size_sort": "zz"
-            })
-            
     conn.close()
+
+    if not rekap_pesanan_db and not unmatched_pesanan:
+        return jsonify({"status": "error", "pesan": "Tidak ada pesanan Cargo valid di file yang diupload."})
     
+    # --- MENYUSUN HASIL AKHIR ---
+    hasil_rekap = []
+    for sku, data in rekap_pesanan_db.items():
+        b = data['db_item']
+        butuh = data['qty']
+        sisa = b['jumlah_gudang'] - butuh
+        hasil_rekap.append({
+            "sku": b['sku'], "nama": f"{b['varian']} ({b['size']})",
+            "butuh": butuh, "stok": b['jumlah_gudang'], "sisa": sisa,
+            "warna_sort": b['varian'].lower(), "size_sort": b['size'].lower()
+        })
+        
+    for nama, butuh in unmatched_pesanan.items():
+        hasil_rekap.append({
+            "sku": "?", "nama": nama, "butuh": butuh, "stok": "-", "sisa": -butuh,
+            "warna_sort": "zz", "size_sort": "zz"
+        })
+    
+    # Algoritma Pengurutan Sesuai Rak Gudangmu
     urutan_warna = {"light blue": 1, "snow hitam": 2, "snow biru": 3}
     urutan_size = {"s": 1, "m": 2, "l": 3, "xl": 4, "8": 5, "9": 6, "10": 7}
     
