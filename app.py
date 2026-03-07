@@ -174,22 +174,32 @@ def upload_csv():
         try:
             row_dicts = []
             nama_file = file.filename.lower()
+            file_bytes = file.read() # 🔒 Baca file di awal biar tidak error stream
             
-            # 🧠 JIKA FILE SHOPEE (.xlsx)
+            # 🧠 JIKA FILE EXCEL SHOPEE (.xlsx)
             if nama_file.endswith('.xlsx'):
-                wb = openpyxl.load_workbook(file, data_only=True)
-                # Sesuai permintaanmu: Baca langsung dari Sheet Kedua (index 1)
-                sheet = wb.worksheets[1] if len(wb.sheetnames) > 1 else wb.active
+                try:
+                    import openpyxl
+                except ImportError:
+                    return jsonify({"status": "error", "pesan": "Modul Excel belum aktif. Buka Console Bash, ketik: pip install openpyxl"})
                 
+                wb = openpyxl.load_workbook(io.BytesIO(file_bytes), data_only=True)
+                
+                # Cari otomatis Sheet yang isinya pesanan (biasanya namanya 'orders')
+                sheet = wb.active
+                for s in wb.worksheets:
+                    if 'order' in s.title.lower():
+                        sheet = s
+                        break
+                        
                 headers = [str(cell.value).strip() if cell.value is not None else '' for cell in sheet[1]]
                 for row in sheet.iter_rows(min_row=2, values_only=True):
                     if not any(row): continue
                     row_dict = {headers[i]: str(row[i]) if i < len(row) and row[i] is not None else '' for i in range(len(headers))}
                     row_dicts.append(row_dict)
                     
-            # 🧠 JIKA FILE TIKTOK (.csv)
+            # 🧠 JIKA FILE CSV TIKTOK (.csv)
             else:
-                file_bytes = file.stream.read()
                 try: file_str = file_bytes.decode('utf-8-sig')
                 except:
                     try: file_str = file_bytes.decode('utf-16')
@@ -205,15 +215,16 @@ def upload_csv():
                 csv_input = csv.DictReader(stream, delimiter=pemisah)
                 row_dicts = list(csv_input)
 
-            # --- PROSES GABUNGAN (BERLAKU UNTUK KEDUANYA) ---
+            # --- PROSES GABUNGAN SHOPEE & TIKTOK ---
             for row in row_dicts:
-                produk = row.get('Product Name', row.get('Nama Produk', '')).strip()
-                variasi = row.get('Variation', row.get('Nama Variasi', '')).strip()
-                qty_str = row.get('Quantity', row.get('Jumlah', '1')).strip() 
+                # Ambil data pakai pengaman .get() or '' biar nggak error kalau kolom kosong
+                produk = (row.get('Product Name') or row.get('Nama Produk') or '').strip()
+                variasi = (row.get('Variation') or row.get('Nama Variasi') or '').strip()
+                qty_str = (row.get('Quantity') or row.get('Jumlah') or '1').strip() 
                 
-                status_tk = row.get('Order Status', '').strip().upper()
-                status_sh_1 = row.get('Status Pesanan', '').strip().upper()
-                status_sh_2 = row.get('Status Pembatalan/ Pengembalian', '').strip().upper()
+                status_tk = (row.get('Order Status') or '').strip().upper()
+                status_sh_1 = (row.get('Status Pesanan') or '').strip().upper()
+                status_sh_2 = (row.get('Status Pembatalan/ Pengembalian') or '').strip().upper()
                 status_gabungan = f"{status_tk} {status_sh_1} {status_sh_2}"
                 
                 if 'CANCEL' in status_gabungan or 'BATAL' in status_gabungan: continue
@@ -227,7 +238,7 @@ def upload_csv():
                     continue
                 
                 variasi_normal = variasi.lower()
-                variasi_normal = variasi_normal.replace('snow black', 'snow hitam') # Terjemahan warna Shopee
+                variasi_normal = variasi_normal.replace('snow black', 'snow hitam') 
                 variasi_normal = variasi_normal.replace('8 (tahun)', '8').replace('8 (8tahun)', '8').replace('9 (9tahun)', '9').replace('10 (10 tahun)', '10')
                 
                 kunci_rekap = f"{produk} || {variasi_normal}"
