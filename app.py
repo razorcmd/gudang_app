@@ -17,14 +17,24 @@ def home():
     campuran = conn.execute("SELECT * FROM stok WHERE kategori = 'CAMPURAN'").fetchall()
     mentahan = conn.execute("SELECT * FROM mentahan").fetchall()
     
-    # Logika Baru yang sudah diperbaiki
+    # Logika pengelompokan batch yang baru (timpa yang lama)
     produksi_raw = conn.execute("SELECT * FROM produksi WHERE selesai < total_pcs ORDER BY id DESC").fetchall()
     produksi_grouped = {}
     for p in produksi_raw:
+        # Key asli di sistem (mengandung detik, jadi pasti terpisah)
         batch_key = f"{p['tanggal']} - {p['vendor_cuci']} ({p['warna_target']})"
+        
         if batch_key not in produksi_grouped:
-            # Ganti nama key dari 'items' jadi 'list_barang' supaya tidak error
-            produksi_grouped[batch_key] = {'list_barang': [], 'grand_total': 0}
+            # Logika buang detik untuk tampilan layar
+            if p['tanggal'].count(':') == 2: # Kalau datanya ada detik (misal 14:30:45)
+                tanggal_tampil = p['tanggal'][:-3] # Gunting 3 karakter terakhir (buang :45)
+            else:
+                tanggal_tampil = p['tanggal'] # Untuk data lama yang belum ada detiknya
+                
+            nama_tampil = f"{tanggal_tampil} - {p['vendor_cuci']} ({p['warna_target']})"
+            
+            produksi_grouped[batch_key] = {'list_barang': [], 'grand_total': 0, 'nama_tampil': nama_tampil}
+            
         produksi_grouped[batch_key]['list_barang'].append(p)
         produksi_grouped[batch_key]['grand_total'] += p['total_pcs']
         
@@ -74,7 +84,7 @@ def kirim_produksi_massal():
     items = data.get('items', [])
     
     conn = database.get_db_connection()
-    tgl = datetime.now().strftime("%d %b %H:%M")
+    tgl = datetime.now().strftime("%d %b %H:%M:%S")
     
     try:
         for item in items:
@@ -153,109 +163,119 @@ def update_progress_bulk():
 
 @app.route('/upload_csv', methods=['POST'])
 def upload_csv():
-    if 'file' not in request.files: return jsonify({"status": "error", "pesan": "Tidak ada file"})
-    file = request.files['file']
-    try:
-        file_bytes = file.stream.read()
-        try: file_str = file_bytes.decode('utf-8-sig')
-        except:
-            try: file_str = file_bytes.decode('utf-16')
-            except: file_str = file_bytes.decode('cp1252')
-                
-        stream = io.StringIO(file_str, newline=None)
-        
-        first_line = file_str.split('\n')[0]
-        if ';' in first_line: pemisah = ';'
-        elif '\t' in first_line: pemisah = '\t'
-        else: pemisah = ','
-            
-        stream.seek(0)
-        csv_input = csv.DictReader(stream, delimiter=pemisah)
+    # Mengambil BANYAK file sekaligus (bisa 1 atau lebih)
+    files = request.files.getlist('file')
+    if not files or files[0].filename == '':
+        return jsonify({"status": "error", "pesan": "Tidak ada file"})
 
-        rekap_pesanan = {}
-        
-        for row in csv_input:
-            produk = row.get('Product Name', '').strip()
-            variasi = row.get('Variation', '').strip()
-            qty_str = row.get('Quantity', '0').strip()
-            status = row.get('Order Status', '').strip().upper()
-            
-            if 'CANCEL' in status or 'BATAL' in status: continue
-            if not produk and not variasi: continue
-            
-            try: qty = int(qty_str)
-            except: qty = 0
-            if qty == 0: continue
-            
-            judul_target = "celana panjang anak cargo pinggang full karet usia 1-8 tahun"
-            if judul_target not in produk.lower():
-                continue
-            
-            kunci_rekap = f"{produk} || {variasi}"
-            rekap_pesanan[kunci_rekap] = rekap_pesanan.get(kunci_rekap, 0) + qty
+    rekap_pesanan = {}
 
-        if not rekap_pesanan:
-            return jsonify({"status": "error", "pesan": "Tidak ada pesanan Celana Panjang Anak Cargo di file ini."})
+    for file in files:
+        try:
+            file_bytes = file.stream.read()
+            try: file_str = file_bytes.decode('utf-8-sig')
+            except:
+                try: file_str = file_bytes.decode('utf-16')
+                except: file_str = file_bytes.decode('cp1252')
+                    
+            stream = io.StringIO(file_str, newline=None)
+            
+            first_line = file_str.split('\n')[0]
+            if ';' in first_line: pemisah = ';'
+            elif '\t' in first_line: pemisah = '\t'
+            else: pemisah = ','
+                
+            stream.seek(0)
+            csv_input = csv.DictReader(stream, delimiter=pemisah)
 
-        conn = database.get_db_connection()
-        stok_semua = conn.execute("SELECT sku, varian, size, jumlah_gudang, kategori FROM stok").fetchall()
-        
-        hasil_rekap = []
-        for kunci, butuh_qty in rekap_pesanan.items():
-            produk, variasi = kunci.split(" || ")
-            
-            variasi_normal = variasi.lower()
-            variasi_normal = variasi_normal.replace('8 (8tahun)', '8').replace('9 (9tahun)', '9').replace('10 (10 tahun)', '10')
-            
-            teks_cari_warna = f"{produk} {variasi_normal}".lower()
-            teks_cari_size = variasi_normal if variasi_normal else produk.lower()
-            
-            barang_cocok = None
-            for b in stok_semua:
-                varian_db = b['varian'].lower()
-                size_db = b['size'].lower()
+            for row in csv_input:
+                # 🧠 SISTEM DETEKSI OTOMATIS TIKTOK & SHOPEE
+                produk = row.get('Product Name', row.get('Nama Produk', '')).strip()
+                variasi = row.get('Variation', row.get('Nama Variasi', '')).strip()
+                # Jika format Shopee Advance tidak ada kolom Jumlah, otomatis anggap 1
+                qty_str = row.get('Quantity', row.get('Jumlah', '1')).strip() 
                 
-                kata_varian = varian_db.split()
-                cocok_warna = all(kata in teks_cari_warna for kata in kata_varian)
-                cocok_size = re.search(r'\b' + re.escape(size_db) + r'\b', teks_cari_size)
+                # Cek status batal dari kedua platform
+                status_tk = row.get('Order Status', '').strip().upper()
+                status_sh_1 = row.get('Status Pesanan', '').strip().upper()
+                status_sh_2 = row.get('Status Pembatalan/ Pengembalian', '').strip().upper()
+                status_gabungan = f"{status_tk} {status_sh_1} {status_sh_2}"
                 
-                if cocok_warna and cocok_size:
-                    if b['kategori'] != 'CARGO': continue
-                    barang_cocok = b
-                    break
-            
-            if barang_cocok:
-                sisa = barang_cocok['jumlah_gudang'] - butuh_qty
-                hasil_rekap.append({
-                    "sku": barang_cocok['sku'], "nama": f"{barang_cocok['varian']} ({barang_cocok['size']})",
-                    "butuh": butuh_qty, "stok": barang_cocok['jumlah_gudang'], "sisa": sisa,
-                    "warna_sort": barang_cocok['varian'].lower(), # Bawaan data untuk disortir
-                    "size_sort": barang_cocok['size'].lower()     # Bawaan data untuk disortir
-                })
-            else:
-                nama_tampil = variasi if variasi else produk[:30]
-                hasil_rekap.append({
-                    "sku": "?", "nama": f"⚠️ {nama_tampil}", "butuh": butuh_qty, "stok": "-", "sisa": -butuh_qty,
-                    "warna_sort": "zz", "size_sort": "zz" # Taruh paling bawah kalau error
-                })
+                if 'CANCEL' in status_gabungan or 'BATAL' in status_gabungan: continue
+                if not produk and not variasi: continue
                 
-        conn.close()
+                try: qty = int(qty_str)
+                except: qty = 1 
+                if qty == 0: continue
+                
+                # Filter Kata Kunci (Karena Shopee judulnya lebih pendek: "Celana Panjang Anak Cargo Usia 1-8")
+                if 'celana panjang anak cargo' not in produk.lower():
+                    continue
+                
+                # 🧠 PENERJEMAH BAHASA SHOPEE & TIKTOK
+                variasi_normal = variasi.lower()
+                variasi_normal = variasi_normal.replace('snow black', 'snow hitam') # Terjemahan Shopee
+                variasi_normal = variasi_normal.replace('8 (tahun)', '8').replace('8 (8tahun)', '8').replace('9 (9tahun)', '9').replace('10 (10 tahun)', '10')
+                
+                kunci_rekap = f"{produk} || {variasi_normal}"
+                rekap_pesanan[kunci_rekap] = rekap_pesanan.get(kunci_rekap, 0) + qty
+
+        except Exception as e:
+            return jsonify({"status": "error", "pesan": f"Gagal membaca file {file.filename}: {str(e)}"})
+
+    if not rekap_pesanan:
+        return jsonify({"status": "error", "pesan": "Tidak ada pesanan Cargo di file yang diupload."})
+
+    conn = database.get_db_connection()
+    stok_semua = conn.execute("SELECT sku, varian, size, jumlah_gudang, kategori FROM stok").fetchall()
+    
+    hasil_rekap = []
+    for kunci, butuh_qty in rekap_pesanan.items():
+        produk, variasi_normal = kunci.split(" || ")
         
-        # 🧠 LOGIKA MENGURUTKAN BARANG (SORTING KUSTOM) 🧠
-        urutan_warna = {"light blue": 1, "snow hitam": 2, "snow biru": 3}
-        urutan_size = {"s": 1, "m": 2, "l": 3, "xl": 4, "8": 5, "9": 6, "10": 7}
+        teks_cari_warna = f"{produk} {variasi_normal}".lower()
+        teks_cari_size = variasi_normal if variasi_normal else produk.lower()
         
-        def aturan_urut(item):
-            # Prioritas 1: Warna, Prioritas 2: Size
-            warna_idx = urutan_warna.get(item['warna_sort'], 99)
-            size_idx = urutan_size.get(item['size_sort'], 99)
-            return (warna_idx, size_idx)
+        barang_cocok = None
+        for b in stok_semua:
+            varian_db = b['varian'].lower()
+            size_db = b['size'].lower()
             
-        hasil_rekap.sort(key=aturan_urut)
+            kata_varian = varian_db.split()
+            cocok_warna = all(kata in teks_cari_warna for kata in kata_varian)
+            cocok_size = re.search(r'\b' + re.escape(size_db) + r'\b', teks_cari_size)
+            
+            if cocok_warna and cocok_size:
+                if b['kategori'] != 'CARGO': continue
+                barang_cocok = b
+                break
         
-        return jsonify({"status": "sukses", "data": hasil_rekap})
-    except Exception as e:
-        return jsonify({"status": "error", "pesan": f"Gagal membaca file: {str(e)}"})
+        if barang_cocok:
+            sisa = barang_cocok['jumlah_gudang'] - butuh_qty
+            hasil_rekap.append({
+                "sku": barang_cocok['sku'], "nama": f"{barang_cocok['varian']} ({barang_cocok['size']})",
+                "butuh": butuh_qty, "stok": barang_cocok['jumlah_gudang'], "sisa": sisa,
+                "warna_sort": barang_cocok['varian'].lower(), "size_sort": barang_cocok['size'].lower()
+            })
+        else:
+            nama_tampil = variasi_normal if variasi_normal else produk[:30]
+            hasil_rekap.append({
+                "sku": "?", "nama": f"⚠️ {nama_tampil}", "butuh": butuh_qty, "stok": "-", "sisa": -butuh_qty,
+                "warna_sort": "zz", "size_sort": "zz"
+            })
+            
+    conn.close()
+    
+    urutan_warna = {"light blue": 1, "snow hitam": 2, "snow biru": 3}
+    urutan_size = {"s": 1, "m": 2, "l": 3, "xl": 4, "8": 5, "9": 6, "10": 7}
+    
+    def aturan_urut(item):
+        warna_idx = urutan_warna.get(item['warna_sort'], 99)
+        size_idx = urutan_size.get(item['size_sort'], 99)
+        return (warna_idx, size_idx)
+        
+    hasil_rekap.sort(key=aturan_urut)
+    return jsonify({"status": "sukses", "data": hasil_rekap})
 
 @app.route('/manifest.json')
 def serve_manifest(): return send_from_directory('.', 'manifest.json')

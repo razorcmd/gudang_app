@@ -41,11 +41,11 @@
     </div>
 
     <h3>📊 Pantauan Produksi per Batch</h3>
-    {% for batch_name, data in produksi_grouped.items() %}
+    {% for batch_key, data in produksi_grouped.items() %}
     <div class="card track-card" style="border-left-color: #9b59b6;">
         <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #eee; padding-bottom: 8px; margin-bottom: 10px;">
             <div>
-                <div style="font-weight: bold; color: #8e44ad; font-size: 14px;">📦 {{ batch_name }}</div>
+                <div style="font-weight: bold; color: #8e44ad; font-size: 14px;">📦 {{ data.nama_tampil }}</div>
                 <div style="font-size: 13px; color: #e67e22; margin-top: 4px;">Total Batch: <strong style="font-size: 16px;">{{ data.grand_total }}</strong> Pcs</div>
             </div>
             <div style="display: flex; gap: 4px; flex-direction: column;">

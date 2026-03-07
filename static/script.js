@@ -172,28 +172,31 @@ if ('serviceWorker' in navigator) { navigator.serviceWorker.register('/sw.js'); 
 window.dataRekapPrint = []; // Brankas sementara untuk nyimpen data sebelum dicetak
 
 function prosesCSV(input) {
-    let file = input.files[0];
-    if(!file) return;
+    let files = input.files;
+    if(files.length === 0) return;
     
     let formData = new FormData();
-    formData.append("file", file);
+    // Looping untuk memasukkan semua file TikTok dan Shopee yang dipilih
+    for(let i = 0; i < files.length; i++) {
+        formData.append("file", files[i]);
+    }
     
     document.getElementById('rekapModalTitle').innerText = "Sedang menghitung...";
     document.getElementById('rekapModalBody').innerHTML = "<div style='text-align:center; padding: 20px;'>Tunggu sebentar... ⏳</div>";
-    document.getElementById('btnCetakRekap').style.display = 'none'; // Sembunyikan tombol cetak
+    document.getElementById('btnCetakRekap').style.display = 'none';
     document.getElementById('rekapModal').style.display = 'flex';
     
     fetch('/upload_csv', { method: 'POST', body: formData })
     .then(res => res.json())
     .then(res => {
-        input.value = ""; 
+        input.value = ""; // Bersihkan memori input
         if(res.status === 'error') {
             alert("Gagal: " + res.pesan);
             document.getElementById('rekapModal').style.display = 'none';
         } else {
-            window.dataRekapPrint = res.data; // Simpan data ke brankas
+            window.dataRekapPrint = res.data;
             tampilkanRekap(res.data);
-            document.getElementById('btnCetakRekap').style.display = 'block'; // Munculkan tombol cetak
+            document.getElementById('btnCetakRekap').style.display = 'block';
         }
     })
     .catch(err => { alert("Gagal mengirim file."); document.getElementById('rekapModal').style.display = 'none'; });
