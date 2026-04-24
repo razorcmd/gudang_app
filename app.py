@@ -1,10 +1,13 @@
-from flask import Flask, render_template, request, jsonify, send_from_directory
+from flask import Flask, render_template, request, jsonify, send_from_directory, send_file, render_template_string
 import os
 from datetime import datetime
 import database 
 import csv
 import io
 import re
+# --- TAMBAHAN IMPORT UNTUK FITUR RAHASIA OPITO ---
+import itertools
+import zipfile
 
 app = Flask(__name__)
 
@@ -162,11 +165,9 @@ def upload_csv():
     if not files or files[0].filename == '':
         return jsonify({"status": "error", "pesan": "Tidak ada file"})
 
-    # Ambil database Cargo dulu buat patokan "perjodohan"
     conn = database.get_db_connection()
     stok_semua = conn.execute("SELECT sku, varian, size, jumlah_gudang, kategori FROM stok WHERE kategori = 'CARGO'").fetchall()
     
-    # Brankas baru yang dikelompokkan berdasarkan SKU Database, bukan teks CSV!
     rekap_pesanan_db = {}
     unmatched_pesanan = {}
 
@@ -176,7 +177,6 @@ def upload_csv():
             nama_file = file.filename.lower()
             file_bytes = file.read() 
             
-            # 🧠 JIKA FILE EXCEL SHOPEE (.xlsx)
             if nama_file.endswith('.xlsx'):
                 try:
                     import openpyxl
@@ -199,7 +199,6 @@ def upload_csv():
                     row_dict = {headers[i]: str(row[i]) if i < len(row) and row[i] is not None else '' for i in range(len(headers))}
                     row_dicts.append(row_dict)
                     
-            # 🧠 JIKA FILE CSV TIKTOK (.csv)
             else:
                 try: file_str = file_bytes.decode('utf-8-sig')
                 except:
@@ -216,7 +215,6 @@ def upload_csv():
                 csv_input = csv.DictReader(stream, delimiter=pemisah)
                 row_dicts = list(csv_input)
 
-            # --- PROSES PEMBACAAN DAN PERJODOHAN ---
             for row in row_dicts:
                 produk = (row.get('Product Name') or row.get('Nama Produk') or '').strip()
                 variasi = (row.get('Variation') or row.get('Nama Variasi') or '').strip()
@@ -227,7 +225,6 @@ def upload_csv():
                 status_sh_2 = (row.get('Status Pembatalan/ Pengembalian') or '').strip().upper()
                 status_gabungan = f"{status_tk} {status_sh_1} {status_sh_2}"
                 
-                # SATPAM 1: Buang yang Batal/Cancel
                 if 'CANCEL' in status_gabungan or 'BATAL' in status_gabungan: continue
                 if not produk and not variasi: continue
                 
@@ -235,7 +232,6 @@ def upload_csv():
                 except: qty = 1 
                 if qty == 0: continue
                 
-                # SATPAM 2: Pastikan ini murni celana Cargo Anak
                 produk_lower = produk.lower()
                 is_tiktok_cargo = 'celana panjang anak cargo pinggang full karet' in produk_lower
                 is_shopee_cargo = 'celana panjang anak cargo usia 1-8' in produk_lower
@@ -243,23 +239,19 @@ def upload_csv():
                 if not (is_tiktok_cargo or is_shopee_cargo):
                     continue
                 
-                # Samakan terjemahan warna saja
                 variasi_normal = variasi.lower().replace('snow black', 'snow hitam') 
                 teks_cari = f"{produk_lower} {variasi_normal}"
                 
-                # 🧠 PROSES PERJODOHAN LANGSUNG KE DATABASE
                 barang_cocok = None
                 for b in stok_semua:
                     kata_varian = b['varian'].lower().split()
                     cocok_warna = all(k in teks_cari for k in kata_varian)
-                    # Regex ini sangat pintar, dia otomatis mengabaikan spasi atau kurung
                     cocok_size = re.search(r'\b' + re.escape(b['size'].lower()) + r'\b', teks_cari)
                     
                     if cocok_warna and cocok_size:
                         barang_cocok = b
                         break
                 
-                # Kalau jodoh ketemu, gabungkan berdasarkan KTP/SKU nya!
                 if barang_cocok:
                     sku = barang_cocok['sku']
                     if sku not in rekap_pesanan_db:
@@ -278,7 +270,6 @@ def upload_csv():
     if not rekap_pesanan_db and not unmatched_pesanan:
         return jsonify({"status": "error", "pesan": "Tidak ada pesanan Cargo valid di file yang diupload."})
     
-    # --- MENYUSUN HASIL AKHIR ---
     hasil_rekap = []
     for sku, data in rekap_pesanan_db.items():
         b = data['db_item']
@@ -296,7 +287,6 @@ def upload_csv():
             "warna_sort": "zz", "size_sort": "zz"
         })
     
-    # Algoritma Pengurutan Sesuai Rak Gudangmu
     urutan_warna = {"light blue": 1, "snow hitam": 2, "snow biru": 3}
     urutan_size = {"s": 1, "m": 2, "l": 3, "xl": 4, "8": 5, "9": 6, "10": 7}
     
@@ -307,6 +297,90 @@ def upload_csv():
         
     hasil_rekap.sort(key=aturan_urut)
     return jsonify({"status": "sukses", "data": hasil_rekap})
+
+# =========================================================================
+# --- FUNGSI & URL RAHASIA OPITO (TIDAK MENGGANGGU WEB UTAMA) ---
+# =========================================================================
+
+def generate_case_combinations(code_string):
+    letter_indices = [i for i, char in enumerate(code_string) if char.isalpha()]
+    letters_to_permute = [code_string[i] for i in letter_indices]
+    case_options = [(char.lower(), char.upper()) for char in letters_to_permute]
+
+    for combo in itertools.product(*case_options):
+        temp_list = list(code_string)
+        for i, new_char in enumerate(combo):
+            original_index = letter_indices[i]
+            temp_list[original_index] = new_char
+        yield "".join(temp_list)
+
+@app.route('/admin-rahasia-opito', methods=['GET', 'POST'])
+def rahasia_opito():
+    if request.method == 'GET':
+        html = """
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Secret Tools</title>
+            <meta name="viewport" content="width=device-width, initial-scale=1">
+        </head>
+        <body style="background: #f4f7f6; padding: 20px; font-family: Arial, sans-serif;">
+            <div style="max-width: 400px; margin: 40px auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
+                <h3 style="text-align: center; color: #333;">🛠️ OPITO CSV Generator</h3>
+                <form method="POST">
+                    <label style="font-size: 14px; color: #555;">Learner Surname:</label><br>
+                    <input type="text" name="surname" placeholder="Contoh: Helmi Setyawan" required style="width: 95%; margin-top: 5px; margin-bottom: 15px; padding: 10px; border: 1px solid #ccc; border-radius: 4px;"><br>
+                    
+                    <label style="font-size: 14px; color: #555;">Kode Kombinasi:</label><br>
+                    <input type="text" name="base_code" placeholder="Contoh: PWZ6YXWUFQ" required style="width: 95%; margin-top: 5px; margin-bottom: 20px; padding: 10px; border: 1px solid #ccc; border-radius: 4px;"><br>
+                    
+                    <button type="submit" style="width: 100%; padding: 12px; background: #28a745; color: white; font-weight: bold; border: none; border-radius: 4px; cursor: pointer;">Generate & Download .ZIP</button>
+                </form>
+            </div>
+        </body>
+        </html>
+        """
+        return render_template_string(html)
+    
+    if request.method == 'POST':
+        surname = request.form.get('surname', '').strip()
+        base_code = request.form.get('base_code', '').strip()
+        
+        headers = [
+            "Learner Surname (required),Certificate Reference (required)",
+            "LearnerSurname,CertificateReference",
+            ""
+        ]
+        
+        combinations = list(generate_case_combinations(base_code))
+        chunk_size = 100
+        
+        memory_file = io.BytesIO()
+        with zipfile.ZipFile(memory_file, 'w', zipfile.ZIP_DEFLATED) as zf:
+            file_count = 1
+            for i in range(0, len(combinations), chunk_size):
+                chunk = combinations[i:i + chunk_size]
+                
+                safe_surname = surname.replace(' ', '_')
+                filename = f"{safe_surname}_OPITO_part_{file_count}.csv"
+                
+                csv_content = "\n".join(headers) + "\n"
+                for combo in chunk:
+                    csv_content += f"{surname},OPITO{combo}\n"
+                
+                zf.writestr(filename, csv_content)
+                file_count += 1
+        
+        memory_file.seek(0)
+        zip_filename = f"OPITO_{surname.replace(' ', '_')}.zip"
+        
+        return send_file(
+            memory_file,
+            download_name=zip_filename,
+            as_attachment=True,
+            mimetype='application/zip'
+        )
+# =========================================================================
 
 @app.route('/manifest.json')
 def serve_manifest(): return send_from_directory('.', 'manifest.json')
