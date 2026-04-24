@@ -5,9 +5,11 @@ import database
 import csv
 import io
 import re
-# --- TAMBAHAN IMPORT UNTUK FITUR RAHASIA OPITO ---
 import itertools
 import zipfile
+# --- TAMBAHAN IMPORT UNTUK QR CODE & URL ---
+import qrcode
+import urllib.parse
 
 app = Flask(__name__)
 
@@ -326,60 +328,128 @@ def rahasia_opito():
         </head>
         <body style="background: #f4f7f6; padding: 20px; font-family: Arial, sans-serif;">
             <div style="max-width: 400px; margin: 40px auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
+                
                 <h3 style="text-align: center; color: #333;">🛠️ OPITO CSV Generator</h3>
                 <form method="POST">
+                    <input type="hidden" name="action" value="generate_csv">
+                    
                     <label style="font-size: 14px; color: #555;">Learner Surname:</label><br>
-                    <input type="text" name="surname" placeholder="Contoh: Helmi Setyawan" required style="width: 95%; margin-top: 5px; margin-bottom: 15px; padding: 10px; border: 1px solid #ccc; border-radius: 4px;"><br>
+                    <input type="text" id="csv_surname" name="surname" placeholder="Contoh: Helmi Setyawan" required style="width: 95%; margin-top: 5px; margin-bottom: 15px; padding: 10px; border: 1px solid #ccc; border-radius: 4px;"><br>
                     
                     <label style="font-size: 14px; color: #555;">Kode Kombinasi:</label><br>
                     <input type="text" name="base_code" placeholder="Contoh: PWZ6YXWUFQ" required style="width: 95%; margin-top: 5px; margin-bottom: 20px; padding: 10px; border: 1px solid #ccc; border-radius: 4px;"><br>
                     
                     <button type="submit" style="width: 100%; padding: 12px; background: #28a745; color: white; font-weight: bold; border: none; border-radius: 4px; cursor: pointer;">Generate & Download .ZIP</button>
                 </form>
+
+                <hr style="margin: 30px 0; border: 1px dashed #ccc;">
+
+                <h3 style="text-align: center; color: #333;">📱 QR Code Generator</h3>
+                <form method="POST">
+                    <input type="hidden" name="action" value="generate_qr">
+                    
+                    <label style="font-size: 14px; color: #555;">Learner Surname:</label><br>
+                    <input type="text" id="qr_surname" name="qr_surname" placeholder="Contoh: Helmi Setyawan" required style="width: 95%; margin-top: 5px; margin-bottom: 15px; padding: 10px; border: 1px solid #ccc; border-radius: 4px;"><br>
+                    
+                    <label style="font-size: 14px; color: #555;">Certification Date:</label><br>
+                    <input type="date" name="qr_cert_date" required style="width: 95%; margin-top: 5px; margin-bottom: 15px; padding: 10px; border: 1px solid #ccc; border-radius: 4px;"><br>
+                    
+                    <label style="font-size: 14px; color: #555;">Ref (Kode Kombinasi Valid):</label><br>
+                    <input type="text" name="qr_ref" placeholder="Contoh: OPITOpZo1dHge2K" required style="width: 95%; margin-top: 5px; margin-bottom: 20px; padding: 10px; border: 1px solid #ccc; border-radius: 4px;"><br>
+                    
+                    <button type="submit" style="width: 100%; padding: 12px; background: #007bff; color: white; font-weight: bold; border: none; border-radius: 4px; cursor: pointer;">Generate & Download QR (.png)</button>
+                </form>
+
             </div>
+
+            <script>
+                document.getElementById('csv_surname').addEventListener('input', function() {
+                    document.getElementById('qr_surname').value = this.value;
+                });
+            </script>
         </body>
         </html>
         """
         return render_template_string(html)
     
     if request.method == 'POST':
-        surname = request.form.get('surname', '').strip()
-        base_code = request.form.get('base_code', '').strip()
-        
-        headers = [
-            "Learner Surname (required),Certificate Reference (required)",
-            "LearnerSurname,CertificateReference",
-            ""
-        ]
-        
-        combinations = list(generate_case_combinations(base_code))
-        chunk_size = 100
-        
-        memory_file = io.BytesIO()
-        with zipfile.ZipFile(memory_file, 'w', zipfile.ZIP_DEFLATED) as zf:
-            file_count = 1
-            for i in range(0, len(combinations), chunk_size):
-                chunk = combinations[i:i + chunk_size]
-                
-                safe_surname = surname.replace(' ', '_')
-                filename = f"{safe_surname}_OPITO_part_{file_count}.csv"
-                
-                csv_content = "\n".join(headers) + "\n"
-                for combo in chunk:
-                    csv_content += f"{surname},OPITO{combo}\n"
-                
-                zf.writestr(filename, csv_content)
-                file_count += 1
-        
-        memory_file.seek(0)
-        zip_filename = f"OPITO_{surname.replace(' ', '_')}.zip"
-        
-        return send_file(
-            memory_file,
-            download_name=zip_filename,
-            as_attachment=True,
-            mimetype='application/zip'
-        )
+        action = request.form.get('action')
+
+        # JIKA TOMBOL CSV DIKLIK
+        if action == 'generate_csv':
+            surname = request.form.get('surname', '').strip()
+            base_code = request.form.get('base_code', '').strip()
+            
+            headers = [
+                "Learner Surname (required),Certificate Reference (required)",
+                "LearnerSurname,CertificateReference",
+                ""
+            ]
+            
+            combinations = list(generate_case_combinations(base_code))
+            chunk_size = 100
+            
+            memory_file = io.BytesIO()
+            with zipfile.ZipFile(memory_file, 'w', zipfile.ZIP_DEFLATED) as zf:
+                file_count = 1
+                for i in range(0, len(combinations), chunk_size):
+                    chunk = combinations[i:i + chunk_size]
+                    
+                    safe_surname = surname.replace(' ', '_')
+                    filename = f"{safe_surname}_OPITO_part_{file_count}.csv"
+                    
+                    csv_content = "\n".join(headers) + "\n"
+                    for combo in chunk:
+                        csv_content += f"{surname},OPITO{combo}\n"
+                    
+                    zf.writestr(filename, csv_content)
+                    file_count += 1
+            
+            memory_file.seek(0)
+            zip_filename = f"OPITO_{surname.replace(' ', '_')}.zip"
+            
+            return send_file(
+                memory_file,
+                download_name=zip_filename,
+                as_attachment=True,
+                mimetype='application/zip'
+            )
+
+        # JIKA TOMBOL QR CODE DIKLIK
+        elif action == 'generate_qr':
+            surname = request.form.get('qr_surname', '').strip()
+            cert_date = request.form.get('qr_cert_date', '').strip()
+            ref = request.form.get('qr_ref', '').strip()
+
+            # 1. Merakit URL & Memastikan spasi pada nama di-encode menjadi %20
+            safe_surname = urllib.parse.quote(surname)
+            url_data = f"https://www.thehubopito.com/public/validate?Surname={safe_surname}&CertificationDate={cert_date}&Ref={ref}"
+
+            # 2. Membuat Objek QR Code
+            qr = qrcode.QRCode(
+                version=1,
+                error_correction=qrcode.constants.ERROR_CORRECT_M,
+                box_size=10,
+                border=4,
+            )
+            qr.add_data(url_data)
+            qr.make(fit=True)
+
+            # 3. Membuat gambar ke dalam memory
+            img = qr.make_image(fill_color="black", back_color="white")
+            img_io = io.BytesIO()
+            img.save(img_io, 'PNG')
+            img_io.seek(0)
+
+            # 4. Mengunduh gambar secara langsung
+            filename = f"QR_{surname.replace(' ', '_')}.png"
+            return send_file(
+                img_io,
+                download_name=filename,
+                as_attachment=True,
+                mimetype='image/png'
+            )
+
 # =========================================================================
 
 @app.route('/manifest.json')
