@@ -324,7 +324,7 @@ def rahasia_opito():
         <html>
         <head>
             <title>Secret Tools</title>
-            <meta name="viewport" content="width=device-width, initial-scale=1">
+            <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0">
         </head>
         <body style="background: #f4f7f6; padding: 20px; font-family: Arial, sans-serif;">
             <div style="max-width: 400px; margin: 40px auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
@@ -334,11 +334,9 @@ def rahasia_opito():
                     <input type="hidden" name="action" value="generate_csv">
                     
                     <label style="font-size: 14px; color: #555;">Learner Surname:</label><br>
-                    <input type="text" id="csv_surname" name="surname" placeholder="Contoh: Helmi Setyawan" required style="width: 95%; margin-top: 5px; margin-bottom: 15px; padding: 10px; border: 1px solid #ccc; border-radius: 4px;"><br>
-                    
+                    <input type="text" id="csv_surname" name="surname" placeholder="Contoh: Helmi Setyawan" required style="font-size: 16px; width: 95%; margin-top: 5px; margin-bottom: 15px; padding: 10px; border: 1px solid #ccc; border-radius: 4px;">                    
                     <label style="font-size: 14px; color: #555;">Kode Kombinasi:</label><br>
-                    <input type="text" name="base_code" placeholder="Contoh: PWZ6YXWUFQ" required style="width: 95%; margin-top: 5px; margin-bottom: 20px; padding: 10px; border: 1px solid #ccc; border-radius: 4px;"><br>
-                    
+                    <input type="text" name="base_code" placeholder="Contoh: PWZ6YXWUFQ" required style="font-size: 16px; width: 95%; margin-top: 5px; margin-bottom: 20px; padding: 10px; border: 1px solid #ccc; border-radius: 4px;">                    
                     <button type="submit" style="width: 100%; padding: 12px; background: #28a745; color: white; font-weight: bold; border: none; border-radius: 4px; cursor: pointer;">Generate & Download .ZIP</button>
                 </form>
 
@@ -349,14 +347,14 @@ def rahasia_opito():
                     <input type="hidden" name="action" value="generate_qr">
                     
                     <label style="font-size: 14px; color: #555;">Learner Surname:</label><br>
-                    <input type="text" id="qr_surname" name="qr_surname" placeholder="Contoh: Helmi Setyawan" required style="width: 95%; margin-top: 5px; margin-bottom: 15px; padding: 10px; border: 1px solid #ccc; border-radius: 4px;"><br>
-                    
+                    <input type="text" id="qr_surname" name="qr_surname" placeholder="Contoh: Helmi Setyawan" required style="font-size: 16px; width: 95%; margin-top: 5px; margin-bottom: 15px; padding: 10px; border: 1px solid #ccc; border-radius: 4px;"> 
+
                     <label style="font-size: 14px; color: #555;">Certification Date:</label><br>
-                    <input type="date" name="qr_cert_date" required style="width: 95%; margin-top: 5px; margin-bottom: 15px; padding: 10px; border: 1px solid #ccc; border-radius: 4px;"><br>
-                    
+                    <input type="date" name="qr_cert_date" required style="font-size: 16px; width: 95%; margin-top: 5px; margin-bottom: 15px; padding: 10px; border: 1px solid #ccc; border-radius: 4px;">
+
                     <label style="font-size: 14px; color: #555;">Ref (Kode Kombinasi Valid):</label><br>
-                    <input type="text" name="qr_ref" placeholder="Contoh: OPITOpZo1dHge2K" required style="width: 95%; margin-top: 5px; margin-bottom: 20px; padding: 10px; border: 1px solid #ccc; border-radius: 4px;"><br>
-                    
+                    <input type="text" name="qr_ref" placeholder="Contoh: OPITOpZo1dHge2K" required style="font-size: 16px; width: 95%; margin-top: 5px; margin-bottom: 20px; padding: 10px; border: 1px solid #ccc; border-radius: 4px;">
+
                     <button type="submit" style="width: 100%; padding: 12px; background: #007bff; color: white; font-weight: bold; border: none; border-radius: 4px; cursor: pointer;">Generate & Download QR (.png)</button>
                 </form>
 
